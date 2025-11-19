@@ -9,10 +9,6 @@ export type {
   FileOperation,
   WikiLink,
   ConflictResolution,
-  PathMappingResult,
-  TagMatch,
-  ScanProgress,
-  ScannerOptions,
   UpdateProgress,
   ValidationResult,
   BrokenLink,
@@ -27,24 +23,30 @@ export type {
   UpdateOptions
 } from './entities.js'
 
+// Scanner types
+export type {
+  ScanProgress,
+  ScanOptions as ScannerOptions
+} from './scanner.js'
+
+// Path mapper types
+export type {
+  PathMappingResult
+} from '../scanning/path-mapper.js'
+
 // Error types
 export type {
   TagFolderError,
   ScannerError,
   FileOperationError,
-  LinkUpdateError,
-  ConflictError,
+  FileConflictError,
   ValidationError
 } from '../utils/errors.js'
 
 // Contract types
 export type {
   ITagScanner,
-  IPathMapper,
-  IFileMover,
-  ILinkUpdater,
-  IConflictResolver,
-  IManualOrganizer
+  ILinkUpdater
 } from './contracts/index.js'
 
 // UI types
@@ -65,7 +67,6 @@ export type {
 // Utility types
 export type {
   PathValidationOptions,
-  ValidationError,
   ValidationWarning,
   LinkType,
   LinkSearchOptions,

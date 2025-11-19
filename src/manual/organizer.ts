@@ -266,8 +266,8 @@ export class ManualOrganizer {
       return {
         confirmed: true,
         data: {
-          selectedTag: tagMappings[0].tag,
-          targetPath: tagMappings[0].path,
+          selectedTag: tagMappings[0]?.tag || '',
+          targetPath: tagMappings[0]?.path || '',
           createFolder: true,
           updateLinks: true,
           createBackup: true

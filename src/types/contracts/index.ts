@@ -3,23 +3,21 @@
  * Re-exports all contract interfaces for organized imports
  */
 
+// Import from existing type definitions
 export type {
-  ITagScanner,
-  ScannerOptions,
+  IFileScanner as ITagScanner,
+  ScanOptions as ScannerOptions,
   ScanProgress
-} from './tag-scanner.contract.js'
+} from '../scanner.js'
 
 export type {
-  IPathMapper,
-  PathMappingResult,
-  TagMatch
-} from './path-mapper.contract.js'
+  PathMappingResult
+} from '../../scanning/path-mapper.js'
 
 export type {
-  IFileMover,
   FileOperation,
   ConflictResolution
-} from './file-mover.contract.js'
+} from '../entities.js'
 
 export type {
   ILinkUpdater,
@@ -41,10 +39,7 @@ export type {
   LinkUpdate
 } from './link-updater.contract.js'
 
-export type {
-  IConflictResolver
-} from './conflict-resolver.contract.js'
-
-export type {
-  IManualOrganizer
-} from './manual-organizer.contract.js'
+// TODO: Define missing interfaces when implemented
+// export interface IFileMover { }
+// export interface IConflictResolver { }
+// export interface IManualOrganizer { }

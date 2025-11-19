@@ -358,7 +358,7 @@ export class TagScanner implements IFileScanner {
     for (const pattern of tagPatterns) {
       const matches = frontmatter.matchAll(pattern)
       for (const match of matches) {
-        const tagContent = match[1] || match[0]
+        const tagContent = match[1] || match[0] || ''
         const extractedTags = this.parseYamlTagList(tagContent)
         tags.push(...extractedTags)
       }
@@ -401,7 +401,7 @@ export class TagScanner implements IFileScanner {
     let fenceLanguage = ''
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim()
+      const line = lines[i]?.trim() || ''
 
       // Handle fenced code blocks
       if (line.startsWith('```')) {
@@ -465,7 +465,7 @@ export class TagScanner implements IFileScanner {
     const lines = content.split('\n')
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
+      const line = lines[i] || ''
       const columnIndex = line.indexOf(tag)
 
       if (columnIndex !== -1) {

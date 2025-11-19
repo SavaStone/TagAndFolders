@@ -320,6 +320,7 @@ export interface TagFolderEvents {
   'dialog-closed': { type: string; result?: any }
   'panel-opened': { type: string; data: any }
   'panel-closed': { type: string }
+  'tag-selection-changed': { selectedTag: string; targetPath: string; valid: boolean }
 
   // Error events
   'error-occurred': { error: Error; context?: any }
@@ -345,7 +346,7 @@ export class EventEmitter {
   private middleware: EventMiddleware[] = []
 
   constructor(events?: Record<string, any>) {
-    this.emitter = events ? new TypedEventEmitter(events) : globalEventEmitter
+    this.emitter = globalEventEmitter
   }
 
   /**
@@ -460,7 +461,7 @@ export class EventEmitter {
    * Get event names
    */
   eventNames(): (keyof TagFolderEvents)[] {
-    return this.emitter.eventNames()
+    return this.emitter.eventNames() as (keyof TagFolderEvents)[]
   }
 }
 
