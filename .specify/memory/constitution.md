@@ -1,50 +1,42 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version Change: 1.1.0 -> 2.0.0
+- Modified Principles: I. Automated Organization -> I. Manual-First Organization (Fundamental change from automation to manual control)
+- Added Sections: N/A (Manual Organization Control already existed)
+- Removed Sections: Automated organization capabilities (removed from core principles)
+- Templates Requiring Updates: ⚠ spec.md (remove auto-organization features), ⚠ quickstart.md (update to manual-only workflow)
+- Follow-up TODOs: Update specification to remove automatic organization features
+-->
+
+# TagFolder Plugin Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Manual-First Organization
+The core value is user control. The plugin provides manual organization tools where users explicitly choose when and how to organize notes based on tags. All organization requires user initiation and approval. Tag-to-path mapping must be flexible and deterministic.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Data Integrity First
+Never lose data. Link preservation (wiki-links and markdown links) is non-negotiable. Operations must be safe; if a move is ambiguous or dangerous, prompt the user or skip.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Zero-Config Usability
+The plugin must be usable immediately upon installation. Default behaviors (e.g., `#tag` -> `tag/`) must work without configuration. Complex settings are opt-in.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Manual Organization Control
+Manual organization commands are the ONLY way to organize notes. Users retain complete control and must explicitly initiate every organization operation. No background or automatic organization is permitted.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Non-Destructive Conflict Resolution
+When file paths conflict, the plugin must offer safe resolution strategies (skip, rename, subfolder) and never overwrite files silently. Exclusions must be respected strictly.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Plugin Architecture
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+Built on the Obsidian API. Must respect Obsidian's file system events. Code should be modular (separating logic for scanning, moving, and link updating).
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Installation & Distribution
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Supports BRAT (Beta) and Manual installation. Releases must include `main.js`, `manifest.json`, and `styles.css`.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+Constitution supersedes all other practices. Amendments require documentation, approval, and a migration plan.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 2.0.0 | **Ratified**: 2025-11-19 | **Last Amended**: 2025-11-19

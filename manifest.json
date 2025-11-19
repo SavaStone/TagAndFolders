@@ -1,0 +1,11 @@
+{
+  "id": "tagfolder-plugin",
+  "name": "TagFolder",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Manual-only file organization for Obsidian based on tags with intelligent conflict resolution and link preservation",
+  "author": "TagFolder Plugin Team",
+  "authorUrl": "https://github.com/your-username/tagfolder-plugin",
+  "fundingUrl": "https://github.com/your-username/tagfolder-plugin",
+  "isDesktopOnly": false
+}

@@ -1,0 +1,58 @@
+{
+  "name": "tagfolder-plugin",
+  "version": "1.0.0",
+  "description": "Manual-only file organization for Obsidian based on tags",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "version": "node version-bump.mjs && git add manifest.json versions.json",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "clean": "rimraf dist build main.js styles.css manifest.json.bak",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "tag",
+    "organization",
+    "file-management",
+    "folders"
+  ],
+  "author": "TagFolder Plugin Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "5.29.0",
+    "@typescript-eslint/parser": "5.29.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "@vitest/ui": "^1.0.0",
+    "builtin-modules": "3.3.0",
+    "esbuild": "0.17.3",
+    "eslint": "8.18.0",
+    "obsidian": "latest",
+    "prettier": "2.7.1",
+    "rimraf": "^5.0.5",
+    "tslib": "2.4.0",
+    "typescript": "4.7.4",
+    "vitest": "^1.0.0"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/tagfolder-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/tagfolder-plugin/issues"
+  },
+  "homepage": "https://github.com/your-username/tagfolder-plugin#readme"
+}
