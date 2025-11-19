@@ -20,6 +20,21 @@ import { FileOperationError, CancellationError } from '@/utils/errors.js'
 import { joinPath, normalizePath } from '@/utils/path-utils.js'
 
 /**
+ * Convert LinkUpdaterSettings to LinkUpdateConfig
+ */
+function convertToLinkUpdateConfig(settings: PluginSettings['linkUpdater']): LinkUpdateConfig {
+  return {
+    linkTypes: settings.linkTypes,
+    updateEmbeddedFiles: settings.updateSettings.updateEmbeddedFiles,
+    updateAliases: settings.updateSettings.updateAliases,
+    normalizePaths: settings.updateSettings.normalizePaths,
+    preserveWhitespace: settings.updateSettings.preserveWhitespace,
+    createBackups: settings.updateSettings.createBackups,
+    conflictResolution: 'skip' // Default strategy
+  }
+}
+
+/**
  * Manual organization result
  */
 export interface ManualOrganizationResult {
@@ -78,7 +93,7 @@ export class ManualOrganizer {
     private progressContainer?: HTMLElement
   ) {
     // Initialize components
-    this.tagScanner = new TagScanner(this.settings.scanner.tagExtraction)
+    this.tagScanner = new TagScanner(this.app, this.settings.scanner.tagExtraction)
     this.pathMapper = new PathMapper()
     this.fileMover = new FileMover({
       timeout: this.settings.organizer.operationTimeout,
@@ -219,6 +234,47 @@ export class ManualOrganizer {
   }
 
   /**
+   * Get organization paths preview for a file
+   */
+  async getOrganizationPathsPreview(file: TFile): Promise<Array<{tag: string, path: string}>> {
+    try {
+      // Scan file for tags
+      const fileTagInfo = await this.tagScanner.scanFile(file.path)
+
+      if (!fileTagInfo.success || fileTagInfo.tags.length === 0) {
+        return []
+      }
+
+      // Get path mappings for each tag
+      const pathMappings: Array<{tag: string, path: string}> = []
+
+      for (const tag of fileTagInfo.tags) {
+        const mappingResult = this.pathMapper.getTargetPath(tag)
+
+        if (mappingResult.valid) {
+          pathMappings.push({
+            tag,
+            path: mappingResult.path
+          })
+        }
+      }
+
+      // Sort by tag specificity (nested tags first)
+      pathMappings.sort((a, b) => {
+        const aNesting = (a.tag.match(/\//g) || []).length
+        const bNesting = (b.tag.match(/\//g) || []).length
+        return bNesting - aNesting // More nested tags first
+      })
+
+      return pathMappings
+
+    } catch (error) {
+      console.error('Failed to get organization paths preview:', error)
+      return []
+    }
+  }
+
+  /**
    * Update settings
    */
   updateSettings(settings: PluginSettings): void {
@@ -226,14 +282,14 @@ export class ManualOrganizer {
 
     // Update component configurations
     this.pathMapper.updateTagMappings(settings.tagMappings)
-    this.tagScanner = new TagScanner(settings.scanner.tagExtraction)
+    this.tagScanner = new TagScanner(this.app, settings.scanner.tagExtraction)
     this.fileMover = new FileMover({
       timeout: settings.organizer.operationTimeout,
       createParents: settings.organizer.createParentDirectories,
       preserveTimestamps: settings.organizer.preserveTimestamps,
       createBackup: settings.organizer.safety.enableBackups
     })
-    this.linkUpdater = new LinkUpdater(settings.linkUpdater)
+    this.linkUpdater = new LinkUpdater(convertToLinkUpdateConfig(settings.linkUpdater))
   }
 
   /**
@@ -275,11 +331,16 @@ export class ManualOrganizer {
       }
     }
 
-    const dialog = new TagSelectionDialog(this.app, {
+    const dialogOptions: TagSelectionDialogOptions = {
       tagMappings,
-      currentNotePath: filePath,
-      defaultTag: options.defaultTag
-    })
+      currentNotePath: filePath
+    }
+
+    if (options.defaultTag !== undefined) {
+      dialogOptions.defaultTag = options.defaultTag
+    }
+
+    const dialog = new TagSelectionDialog(this.app, dialogOptions)
 
     dialog.open()
     return await dialog.getResult()
@@ -377,9 +438,9 @@ export class ManualOrganizer {
       throw error
 
     } finally {
-      if (progressIndicator) {
+      if (progressIndicator?.hide) {
         setTimeout(() => {
-          progressIndicator.hide()
+          progressIndicator?.hide()
         }, 2000)
       }
     }
@@ -438,7 +499,7 @@ export class ManualOrganizer {
       // Only update links that the user has enabled
       return await this.linkUpdater.updateLinks(operations, {
         linkTypes: this.settings.linkUpdater.linkTypes,
-        createBackups: this.settings.linkUpdater.updateSettings.createBackups
+        createBackup: this.settings.linkUpdater.updateSettings.createBackups
       })
     }
 
@@ -460,10 +521,13 @@ export class ManualOrganizer {
       // In a real implementation, this would detect the actual conflict
       const conflictInfo = {
         operation: {
-          id: '',
+          id: 'conflict-op-' + Date.now(),
           type: 'move' as const,
           source: error.filePath,
-          target: error.filePath
+          target: error.filePath,
+          status: 'pending' as const,
+          createdAt: new Date(),
+          associatedTags: []
         },
         type: 'target-exists' as const,
         existingFile: {
@@ -485,7 +549,7 @@ export class ManualOrganizer {
 
       if (result.confirmed) {
         // Apply conflict resolution
-        console.log('Conflict resolution:', result.strategy)
+        console.log('Conflict resolution:', result.data?.strategy)
         return true
       }
 

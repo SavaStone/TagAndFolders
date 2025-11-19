@@ -8,7 +8,10 @@
       "Bash(npm run build)",
       "Bash(npm test:*)",
       "Bash(.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
-      "Bash(powershell.exe:*)"
+      "Bash(powershell.exe:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

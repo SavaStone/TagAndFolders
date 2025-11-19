@@ -2,7 +2,7 @@
  * TagFolder Plugin Core - Main plugin implementation
  */
 
-import { App, Plugin, Notice, WorkspaceLeaf, TFile } from 'obsidian'
+import { App, Plugin, Notice, WorkspaceLeaf, TFile, Modal } from 'obsidian'
 import type { PluginSettings } from '@/types/settings.js'
 import { ManualOrganizer } from '@/manual/organizer.js'
 import { eventEmitter } from '@/utils/events.js'
@@ -195,13 +195,195 @@ export class TagFolderPlugin {
         return
       }
 
-      // This would implement the preview functionality from User Story 2
-      new Notice('Organization paths preview coming soon!')
+      // Get organization paths preview
+      const paths = await this.manualOrganizer.getOrganizationPathsPreview(activeFile)
+
+      if (paths.length === 0) {
+        // Show no tags notification
+        this.showNoTagsNotification(activeFile)
+        return
+      }
+
+      // Show organization paths notification
+      this.showOrganizationPathsNotification(activeFile, paths)
 
     } catch (error) {
       console.error('Failed to show organization paths:', error)
-      new Notice('Failed to show organization paths')
+      new Notice(`Failed to show organization paths: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
+  }
+
+  /**
+   * Show no tags notification (not modal dialog)
+   */
+  private showNoTagsNotification(file: TFile): void {
+    const message = `No tags found in "${file.basename}". Add tags in YAML frontmatter or use #hashtags.`
+    new Notice(message, 8000) // Show for 8 seconds
+  }
+
+  /**
+   * Show organization paths notification (not modal dialog)
+   */
+  private showOrganizationPathsNotification(file: TFile, paths: Array<{tag: string, path: string}>): void {
+    const pathsText = paths
+      .map(({path}) => `• ${path}/`)
+      .join('\n')
+
+    const message = `You can move "${file.basename}" to:\n${pathsText}`
+    new Notice(message, 10000) // Show for 10 seconds
+  }
+
+  /**
+   * Show no tags dialog (legacy - not used)
+   */
+  private showNoTagsDialog(file: TFile): void {
+    class NoTagsModal extends Modal {
+      constructor(app: App, private file: TFile) {
+        super(app)
+      }
+
+      override onOpen() {
+        const { contentEl } = this
+
+        // Добавляем стиль для модального окна
+        contentEl.addClass('tagfolder-modal')
+        contentEl.empty()
+
+        // Заголовок с иконкой
+        const headerEl = contentEl.createDiv('tagfolder-modal-header')
+        headerEl.createEl('span', { cls: 'tagfolder-icon tagfolder-icon-warning', text: '⚠️' })
+        headerEl.createEl('h2', { text: 'No Tags Found', cls: 'tagfolder-modal-title' })
+
+        // Основной контент
+        const bodyEl = contentEl.createDiv('tagfolder-modal-body')
+
+        const message = bodyEl.createDiv('tagfolder-message')
+        message.createEl('p', {
+          text: `This note "${this.file.basename}" doesn\'t contain any tags for organization.`,
+          cls: 'tagfolder-description'
+        })
+
+        // Инструкция по добавлению тегов
+        const howToEl = bodyEl.createDiv('tagfolder-how-to')
+        howToEl.createEl('h3', { text: '📝 How to Add Tags', cls: 'tagfolder-section-title' })
+
+        const examplesEl = howToEl.createDiv('tagfolder-examples')
+
+        const yamlExample = examplesEl.createDiv('tagfolder-example')
+        yamlExample.createEl('h4', { text: 'YAML Frontmatter:', cls: 'tagfolder-example-title' })
+        yamlExample.createEl('pre', {
+          text: '---\ntags:\n  - project\n  - active\n---',
+          cls: 'tagfolder-code-block'
+        })
+
+        const inlineExample = examplesEl.createDiv('tagfolder-example')
+        inlineExample.createEl('h4', { text: 'Inline Tags:', cls: 'tagfolder-example-title' })
+        inlineExample.createEl('p', {
+          text: 'Just type #project #active anywhere in your note',
+          cls: 'tagfolder-example-text'
+        })
+
+        // Кнопки
+        const buttonsEl = contentEl.createDiv('tagfolder-modal-footer')
+        const closeButton = buttonsEl.createEl('button', {
+          text: 'Got it!',
+          cls: 'tagfolder-button tagfolder-button-primary'
+        })
+        closeButton.onclick = () => this.close()
+      }
+
+      override onClose() {
+        const { contentEl } = this
+        contentEl.empty()
+        contentEl.removeClass('tagfolder-modal')
+      }
+    }
+
+    new NoTagsModal(this.app, file).open()
+  }
+
+  /**
+   * Show organization paths dialog
+   */
+  private showOrganizationPathsDialog(file: TFile, paths: Array<{tag: string, path: string}>): void {
+    class PathsModal extends Modal {
+      constructor(app: App, private file: TFile, private paths: Array<{tag: string, path: string}>) {
+        super(app)
+      }
+
+      override onOpen() {
+        const { contentEl } = this
+
+        // Добавляем стиль для модального окна
+        contentEl.addClass('tagfolder-modal')
+        contentEl.empty()
+
+        // Заголовок с иконкой
+        const headerEl = contentEl.createDiv('tagfolder-modal-header')
+        headerEl.createEl('span', { cls: 'tagfolder-icon tagfolder-icon-preview', text: '👁️' })
+        headerEl.createEl('h2', { text: 'Organization Paths Preview', cls: 'tagfolder-modal-title' })
+
+        // Основной контент
+        const bodyEl = contentEl.createDiv('tagfolder-modal-body')
+
+        const message = bodyEl.createDiv('tagfolder-message')
+        message.createEl('p', {
+          text: `You can move "${this.file.basename}" to the following paths:`,
+          cls: 'tagfolder-description'
+        })
+
+        // Список путей с иерархией
+        const pathsEl = bodyEl.createDiv('tagfolder-paths-list')
+
+        this.paths.forEach(({tag, path}, index) => {
+          const pathItem = pathsEl.createDiv('tagfolder-path-item')
+
+          // Определяем уровень иерархии
+          const nestingLevel = (tag.match(/\//g) || []).length
+          const icon = nestingLevel > 0 ? '📁' : '📂'
+
+          // Создаем визуальную иерархию
+          const indent = nestingLevel * 20
+          pathItem.style.paddingLeft = `${indent + 10}px`
+
+          // Тег с иконкой
+          const tagEl = pathItem.createDiv('tagfolder-tag')
+          tagEl.createEl('span', { cls: 'tagfolder-tag-icon', text: icon })
+          tagEl.createEl('span', { cls: 'tagfolder-tag-name', text: tag })
+
+          // Путь со стрелкой
+          const pathEl = pathItem.createDiv('tagfolder-path')
+          pathEl.createEl('span', { cls: 'tagfolder-path-arrow', text: '→' })
+          pathEl.createEl('code', {
+            text: `${path}/`,
+            cls: 'tagfolder-path-code'
+          })
+        })
+
+        // Примечание
+        const noteEl = bodyEl.createDiv('tagfolder-note')
+        noteEl.createEl('p', {
+          text: '💡 This is a preview only. No files will be moved.',
+          cls: 'tagfolder-note-text'
+        })
+
+        // Кнопки
+        const buttonsEl = contentEl.createDiv('tagfolder-modal-footer')
+        const closeButton = buttonsEl.createEl('button', {
+          text: 'Close',
+          cls: 'tagfolder-button tagfolder-button-secondary'
+        })
+        closeButton.onclick = () => this.close()
+      }
+
+      override onClose() {
+        const { contentEl } = this
+        contentEl.empty()
+        contentEl.removeClass('tagfolder-modal')
+      }
+    }
+
+    new PathsModal(this.app, file, paths).open()
   }
 
   /**

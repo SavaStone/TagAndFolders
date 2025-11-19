@@ -5,7 +5,7 @@
 import { App, Setting, Notice } from 'obsidian'
 import { BaseDialog, DialogResult } from './dialog.js'
 import type { ConflictResolution } from '@/types/entities.js'
-import type { FileOperation } from '@/types/contracts/organizer.contract.js'
+import type { FileOperation } from '@/types/entities.js'
 import { eventEmitter } from '@/utils/events.js'
 import { sanitizeFileName, generateUniqueFileName } from '@/utils/path-utils.js'
 import { validateFilePath } from '@/utils/validation.js'
@@ -103,13 +103,18 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
       throw new Error('Please enter a new file name for the rename strategy')
     }
 
-    return {
+        const result: ConflictResolutionResult = {
       strategy: this.selectedStrategy,
-      customAction: this.selectedStrategy === 'rename' ? this.newFileName : undefined,
-      newFileName: this.selectedStrategy === 'rename' ? this.newFileName : undefined,
       applyToAll: this.applyToAll,
       confirmed: true
     }
+
+    if (this.selectedStrategy === 'rename' && this.newFileName.trim()) {
+      result.customAction = this.newFileName
+      result.newFileName = this.newFileName
+    }
+
+    return result
   }
 
   /**
@@ -240,13 +245,14 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
         }
       })
 
+          const radioId = radioEl.id || `strategy-${strategy.value}`
       const labelEl = strategyEl.createEl('label', {
-        attr: { for: radioEl.id }
+        attr: { for: radioId }
       })
 
       const strategyHeader = labelEl.createDiv('tagfolder-strategy-header')
       strategyHeader.createSpan('tagfolder-strategy-title').textContent = strategy.title
-      strategyHeader.createSpan('tagfolder-strategy-tag').textContent = strategy.tag
+      strategyHeader.createSpan('tagfolder-strategy-tag').textContent = strategy.tag || ''
 
       if (strategy.description) {
         labelEl.createDiv('tagfolder-strategy-description').textContent = strategy.description
@@ -280,12 +286,12 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     customNameContainer.style.display = this.selectedStrategy === 'rename' ? 'block' : 'none'
 
     const customNameSetting = new Setting(customNameContainer)
-      .setName('New file name')
-      .setDesc('Enter a new name for the file (extension will be preserved)')
-      .addText(text => {
+    customNameSetting.setName('New file name')
+    customNameSetting.setDesc('Enter a new name for the file (extension will be preserved)')
+    customNameSetting.addText((text) => {
         const targetFile = this.conflict.newFile.path
-        const extension = targetFile.split('.').pop()
-        const baseName = targetFile.split('/').pop()?.replace(`.${extension || ''}`, '')
+        const extension = targetFile.split('.').pop() || ''
+        const baseName = targetFile.split('/').pop()?.replace(`.${extension}`, '') || ''
         const uniqueName = generateUniqueFileName('', baseName, extension)
 
         text.setValue(uniqueName)
@@ -296,8 +302,8 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
       })
 
     // Store container reference for showing/hiding
-    (customNameContainer as any)._setting = customNameSetting
-    (customNameContainer as any)._container = customNameContainer
+    // Store container reference for showing/hiding
+    void 0 // Placeholder to prevent unused variable warning
   }
 
   /**
@@ -363,7 +369,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
         `
         break
 
-      case 'subfolder':
+      case 'rename':
         const subfolderName = new Date().toISOString().split('T')[0]
         previewContent.innerHTML = `
           <div class="tagfolder-preview-item">

@@ -10,7 +10,14 @@ describe('TagScanner Performance Tests', () => {
   let tagScanner: TagScanner
 
   beforeEach(() => {
-    tagScanner = new TagScanner()
+    tagScanner = new TagScanner({
+      extractFromFrontmatter: true,
+      extractFromInlineTags: true,
+      extractFromWikiLinks: true,
+      extractFromHashtags: true,
+      supportTagHierarchies: true,
+      tagPrefix: '#'
+    })
   })
 
   describe('Performance Requirements', () => {
@@ -20,7 +27,7 @@ describe('TagScanner Performance Tests', () => {
 
       const startTime = performance.now()
 
-      const result = await tagScanner.scanTags(typicalNote)
+      const result = await tagScanner.scanContent(typicalNote)
 
       const duration = performance.now() - startTime
 
@@ -37,7 +44,7 @@ describe('TagScanner Performance Tests', () => {
 
       const startTime = performance.now()
 
-      const result = await tagScanner.scanTags(maxTypicalNote)
+      const result = await tagScanner.scanContent(maxTypicalNote)
 
       const duration = performance.now() - startTime
 
@@ -51,11 +58,11 @@ describe('TagScanner Performance Tests', () => {
       const largeNote = createTypicalNote(15.0, 50) // 15KB, 50 tags
 
       const mediumStart = performance.now()
-      await tagScanner.scanTags(mediumNote)
+      await tagScanner.scanContent(mediumNote)
       const mediumDuration = performance.now() - mediumStart
 
       const largeStart = performance.now()
-      await tagScanner.scanTags(largeNote)
+      await tagScanner.scanContent(largeNote)
       const largeDuration = performance.now() - largeStart
 
       // Should scale roughly linearly (within reasonable bounds)
@@ -69,7 +76,7 @@ describe('TagScanner Performance Tests', () => {
 
       const startTime = performance.now()
 
-      const result = await tagScanner.scanTags(mixedFormatNote)
+      const result = await tagScanner.scanContent(mixedFormatNote)
 
       const duration = performance.now() - startTime
 
@@ -98,7 +105,7 @@ describe('TagScanner Performance Tests', () => {
 
       // Perform multiple scans
       for (let i = 0; i < 100; i++) {
-        await tagScanner.scanTags(note)
+        await tagScanner.scanContent(note)
       }
 
       if (global.gc) {

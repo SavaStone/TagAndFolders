@@ -222,19 +222,9 @@ export function generateUniqueFileName(dirPath: string, baseName: string, extens
   let counter = 1
 
   // Check if file exists (this is a placeholder - actual implementation would check file system)
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  while (false) { // Replace with actual file existence check
-    fileName = `${baseName} (${counter})${fullExtension}`
-    counter++
-
-    // Prevent infinite loop
-    if (counter > 9999) {
-      fileName = `${baseName}-${Date.now()}${fullExtension}`
-      break
-    }
-  }
-
-  return fileName
+  // TODO: Implement actual file existence check
+  // For now, just use the base name
+  return fileName || `${baseName}${fullExtension}`
 }
 
 /**
@@ -292,7 +282,7 @@ export function getCommonPath(paths: string[]): string {
   const normalizedPaths = paths.map(normalizePath)
 
   // Split first path into parts
-  const firstParts = normalizedPaths[0].split(PATH_SEPARATOR)
+  const firstParts = (normalizedPaths[0] || '').split(PATH_SEPARATOR)
 
   // Find common prefix length
   let commonLength = 0
@@ -360,4 +350,17 @@ export interface TruncateOptions {
   separator?: string
   /** Whether to preserve the filename at the end */
   preserveEnd?: boolean
+}
+
+/**
+ * Format file size in human-readable format
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes'
+
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }

@@ -107,7 +107,8 @@ export interface OrganizationSessionResult {
 }
 
 // Re-export types that need to be imported from other modules
-import type { PathMappingResult, FileOperation } from '../types/entities.js'
+import type { FileOperation } from '../types/entities.js'
+import type { PathMappingResult } from '../scanning/path-mapper.js'
 
 // Then re-export them for consistency
 export type { PathMappingResult, FileOperation }

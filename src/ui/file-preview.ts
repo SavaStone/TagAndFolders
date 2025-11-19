@@ -2,7 +2,7 @@
  * File Preview Component - Shows file information and content preview
  */
 
-import { App, TFile } from 'obsidian'
+import { App, TFile, Notice } from 'obsidian'
 import { joinPath, getBaseName, getExtension, formatFileSize } from '@/utils/path-utils.js'
 import { eventEmitter } from '@/utils/events.js'
 
@@ -307,14 +307,14 @@ export class FilePreview {
     const actionsEl = footerEl.createDiv('tagfolder-preview-actions')
 
     // Open file button
-    const openButton = actionsEl.createButton('tagfolder-preview-action-button')
+    const openButton = actionsEl.createEl('button', { cls: 'tagfolder-preview-action-button' })
     openButton.textContent = 'Open in Editor'
     openButton.addEventListener('click', () => {
       this.openFileInEditor()
     })
 
     // Copy path button
-    const copyButton = actionsEl.createButton('tagfolder-preview-action-button')
+    const copyButton = actionsEl.createEl('button', { cls: 'tagfolder-preview-action-button' })
     copyButton.textContent = 'Copy Path'
     copyButton.addEventListener('click', () => {
       this.copyFilePath()
@@ -439,6 +439,8 @@ export class FilePreview {
     try {
       // Simple YAML parsing - in real implementation, use a proper YAML parser
       const frontmatterText = frontmatterMatch[1]
+      if (!frontmatterText) return {}
+
       const frontmatter: Record<string, any> = {}
 
       const lines = frontmatterText.split('\n')
@@ -490,9 +492,9 @@ export class FilePreview {
     for (const section of this.options.highlightSections) {
       const sectionMatch = section.match(/^(\d+):(\d+)-(\d+)$/)
       if (sectionMatch) {
-        const sectionLine = parseInt(sectionMatch[1])
-        const startCol = parseInt(sectionMatch[2])
-        const endCol = parseInt(sectionMatch[3])
+        const sectionLine = parseInt(sectionMatch[1] || '0')
+        const startCol = parseInt(sectionMatch[2] || '0')
+        const endCol = parseInt(sectionMatch[3] || '0')
 
         if (sectionLine === lineNumber) {
           // In a real implementation, this would highlight the specific characters

@@ -286,7 +286,7 @@ export function validatePluginSettings(settings: PluginSettings): ValidationResu
   const duplicateTags = tags.filter((tag, index) => tags.indexOf(tag) !== index)
   if (duplicateTags.length > 0) {
     warnings.push({
-      type: 'logic',
+      type: 'recommendation',
       message: `Duplicate tag mappings found: ${duplicateTags.join(', ')}`,
       path: 'tagMappings'
     })

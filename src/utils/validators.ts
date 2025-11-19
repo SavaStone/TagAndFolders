@@ -202,13 +202,13 @@ export class TagValidator {
     const hashtagMatches = text.matchAll(/#[\w\-\/]+/g)
     for (const match of hashtagMatches) {
       const tag = match[0]
-      const validation = this.validateTag(tag)
+      const validation = this.validateTag(tag || '')
 
       if (validation.valid) {
-        tags.push(validation.cleanTag || tag)
+        tags.push(validation.cleanTag || tag || '')
       } else {
-        invalidTags.push(tag)
-        errors.push(...validation.errors.map(error => `${tag}: ${error}`))
+        invalidTags.push(tag || '')
+        errors.push(...validation.errors.map(error => `${tag || ''}: ${error}`))
       }
     }
 
@@ -441,12 +441,12 @@ export class ConfigurationValidator {
     for (let i = 0; i < paths.length; i++) {
       for (let j = i + 1; j < paths.length; j++) {
         if (paths[i] === paths[j]) {
-          conflicts.push(`Multiple tags map to the same path: ${mappings[i].tag} and ${mappings[j].tag} both map to '${mappings[i].path}'`)
+          conflicts.push(`Multiple tags map to the same path: ${mappings[i]?.tag || 'unknown'} and ${mappings[j]?.tag || 'unknown'} both map to '${mappings[i]?.path || 'unknown'}'`)
         }
 
         // Check for nested paths
-        if (paths[i].startsWith(paths[j] + '/') || paths[j].startsWith(paths[i] + '/')) {
-          conflicts.push(`Nested paths detected: ${mappings[i].tag} (${mappings[i].path}) and ${mappings[j].tag} (${mappings[j].path})`)
+        if (paths[i]?.startsWith(paths[j] + '/') || paths[j]?.startsWith(paths[i] + '/')) {
+          conflicts.push(`Nested paths detected: ${mappings[i]?.tag || 'unknown'} (${mappings[i]?.path || 'unknown'}) and ${mappings[j]?.tag || 'unknown'} (${mappings[j]?.path || 'unknown'})`)
         }
       }
     }

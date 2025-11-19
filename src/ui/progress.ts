@@ -71,16 +71,19 @@ export class ProgressIndicator {
   private progressBar: ProgressBarComponent | null = null
   private type: ProgressType
   private onCancel?: () => void
+  private operationId: string
 
   constructor(
     app: App,
     container: HTMLElement,
     type: ProgressType = 'bar',
-    options: ProgressOptions = {}
+    options: Partial<ProgressOptions> = {}
   ) {
     this.containerEl = container
     this.type = type
+    this.operationId = `progress-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     this.options = {
+      title: 'Progress',
       total: 100,
       showCount: true,
       showTimeRemaining: true,
@@ -162,7 +165,7 @@ export class ProgressIndicator {
    */
   increment(amount: number = 1, current?: string): void {
     const newPercentage = Math.min(100, this.state.percentage + (amount / this.state.total) * 100)
-    this.updateProgress(newPercentage, { current })
+    this.updateProgress(newPercentage, current ? { current } : {})
   }
 
   /**
@@ -272,7 +275,8 @@ export class ProgressIndicator {
 
     // Apply custom color
     if (this.options.color) {
-      this.progressBar.progressEl.style.backgroundColor = this.options.color
+      // TODO: Implement color customization when Obsidian API supports it
+      // this.progressBar.progressEl.style.backgroundColor = this.options.color
     }
 
     // Details
@@ -414,7 +418,7 @@ export class ProgressIndicator {
     const controlsEl = this.containerEl.createDiv('tagfolder-progress-controls')
 
     if (this.options.cancellable && this.state.status === 'running') {
-      const cancelButton = controlsEl.createButton('tagfolder-progress-cancel')
+      const cancelButton = controlsEl.createEl('button', { cls: 'tagfolder-progress-cancel' })
       cancelButton.textContent = 'Cancel'
       cancelButton.addEventListener('click', () => {
         this.cancel()
@@ -422,17 +426,19 @@ export class ProgressIndicator {
     }
 
     if (this.state.status === 'cancelled' || this.state.status === 'error') {
-      const retryButton = controlsEl.createButton('tagfolder-progress-retry')
+      const retryButton = controlsEl.createEl('button', { cls: 'tagfolder-progress-retry' })
       retryButton.textContent = 'Retry'
       retryButton.addEventListener('click', () => {
         this.state.status = 'running'
-        this.state.error = undefined
+        if ('error' in this.state) {
+          delete this.state.error
+        }
         this.render()
       })
     }
 
     if (this.state.status === 'completed') {
-      const dismissButton = controlsEl.createButton('tagfolder-progress-dismiss')
+      const dismissButton = controlsEl.createEl('button', { cls: 'tagfolder-progress-dismiss' })
       dismissButton.textContent = 'Dismiss'
       dismissButton.addEventListener('click', () => {
         this.hide()
@@ -491,12 +497,14 @@ export class ProgressIndicator {
    * Emit progress event
    */
   private emitProgressEvent(event: string): void {
-    eventEmitter.emit('operation-progress', {
-      percentage: this.state.percentage,
-      completed: this.state.completed,
-      total: this.state.total,
-      current: this.state.current
-    })
+    const eventData: { operationId: string; progress: number; message?: string } = {
+      operationId: this.operationId,
+      progress: this.state.percentage / 100
+    }
+    if (this.state.current) {
+      eventData.message = this.state.current
+    }
+    eventEmitter.emit('operation-progress', eventData)
   }
 
   /**
@@ -585,7 +593,7 @@ export class ProgressManager {
   /**
    * Create a new progress indicator
    */
-  createProgress(id: string, type: ProgressType = 'bar', options: ProgressOptions = {}): ProgressIndicator {
+  createProgress(id: string, type: ProgressType = 'bar', options: Partial<ProgressOptions> = {}): ProgressIndicator {
     // Remove existing indicator with same ID
     if (this.indicators.has(id)) {
       this.removeProgress(id)

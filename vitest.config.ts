@@ -4,7 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -54,5 +54,8 @@ export default defineConfig({
       '@/manual': resolve(__dirname, 'src/manual'),
       '@/core': resolve(__dirname, 'src/core')
     }
+  },
+  define: {
+    'process.env.NODE_ENV': '"test"'
   }
 });

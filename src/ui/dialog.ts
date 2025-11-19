@@ -59,7 +59,7 @@ export abstract class BaseDialog<T = any> extends Modal {
       closable: true,
       showCancel: true,
       width: 500,
-      height: 'auto',
+      height: 300,
       type: 'info',
       ...options
     }
@@ -69,7 +69,7 @@ export abstract class BaseDialog<T = any> extends Modal {
     })
   }
 
-  onOpen(): void {
+  override onOpen(): void {
     const { contentEl } = this
 
     // Add dialog container
@@ -81,7 +81,7 @@ export abstract class BaseDialog<T = any> extends Modal {
     if (this.options.width) {
       contentEl.style.width = `${this.options.width}px`
     }
-    if (this.options.height && this.options.height !== 'auto') {
+    if (this.options.height && this.options.height > 0) {
       contentEl.style.height = `${this.options.height}px`
     }
 
@@ -104,7 +104,7 @@ export abstract class BaseDialog<T = any> extends Modal {
     })
   }
 
-  onClose(): void {
+  override onClose(): void {
     // If dialog is closed without explicit action, treat as cancelled
     if (this.resolveResult) {
       this.resolveResult({
@@ -329,8 +329,8 @@ export class ErrorDialog extends BaseDialog {
  * Loading dialog with progress
  */
 export class LoadingDialog extends BaseDialog {
-  private progressEl: HTMLDivElement
-  private messageEl: HTMLDivElement
+  private progressEl!: HTMLDivElement
+  private messageEl!: HTMLDivElement
 
   constructor(app: App, title: string, options?: Partial<DialogOptions>) {
     super(app, {

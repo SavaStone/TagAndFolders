@@ -19,7 +19,7 @@ export abstract class TagFolderError extends Error {
   public readonly context?: Record<string, any>
 
   /** Inner error that caused this error */
-  public readonly cause?: Error
+  public readonly cause: Error | undefined
 
   constructor(
     code: string,
@@ -34,7 +34,7 @@ export abstract class TagFolderError extends Error {
     this.code = code
     this.severity = severity
     this.recoverable = recoverable
-    this.context = context
+    this.context = context || {}
     this.cause = cause
 
     // Maintain proper stack trace for where our error was thrown
@@ -66,7 +66,7 @@ export abstract class TagFolderError extends Error {
   /**
    * Get user-friendly error message
    */
-  override getUserMessage(): string {
+  getUserMessage(): string {
     return this.message
   }
 }
@@ -196,7 +196,7 @@ export class FileConflictError extends FileOperationError {
  * Scanner errors
  */
 export class ScannerError extends TagFolderError {
-  public readonly filePath?: string
+  public readonly filePath: string | undefined
 
   constructor(
     message: string,
@@ -206,7 +206,11 @@ export class ScannerError extends TagFolderError {
     context?: Record<string, any>,
     cause?: Error
   ) {
-    super('SCANNER_ERROR', message, severity, recoverable, { ...context, filePath }, cause)
+    const contextWithFilePath = { ...context }
+    if (filePath !== undefined) {
+      contextWithFilePath.filePath = filePath
+    }
+    super('SCANNER_ERROR', message, severity, recoverable, contextWithFilePath, cause)
     this.filePath = filePath
   }
 
@@ -257,7 +261,8 @@ export class TimeoutError extends TagFolderError {
       message || `Operation '${operation}' timed out after ${timeout}ms`,
       'medium',
       true,
-      { operation, timeout }
+      { operation, timeout },
+      undefined
     )
     this.operation = operation
     this.timeout = timeout
@@ -280,7 +285,8 @@ export class CancellationError extends TagFolderError {
       `Operation '${operation}' was cancelled by user`,
       'low',
       true,
-      { operation, cancelled: true }
+      { operation, cancelled: true },
+      undefined
     )
     this.operation = operation
   }
@@ -334,7 +340,14 @@ export class ErrorHandler {
    * Wrap a generic Error into TagFolderError
    */
   private wrapError(error: Error, context?: Record<string, any>): TagFolderError {
-    return new TagFolderError(
+    // Create a concrete implementation instead of abstract class
+    class ConcreteTagFolderError extends TagFolderError {
+      constructor(code: string, message: string, severity: 'low' | 'medium' | 'high', recoverable: boolean, context?: Record<string, any>, cause?: Error) {
+        super(code, message, severity, recoverable, context, cause)
+      }
+    }
+
+    return new ConcreteTagFolderError(
       'UNKNOWN_ERROR',
       error.message || 'An unknown error occurred',
       'medium',
@@ -459,7 +472,13 @@ export function createError(
     case 'CANCELLATION_ERROR':
       return new CancellationError(context?.operation || 'unknown')
     default:
-      return new TagFolderError(code, message, 'medium', true, context, cause)
+      // Create a concrete error instance
+      class DefaultTagFolderError extends TagFolderError {
+        constructor(errorCode: string, errorMessage: string, errorSeverity: 'low' | 'medium' | 'high' | 'critical', errorRecoverable: boolean, errorContext?: Record<string, any>, errorCause?: Error) {
+          super(errorCode, errorMessage, errorSeverity, errorRecoverable, errorContext, errorCause)
+        }
+      }
+      return new DefaultTagFolderError(code, message, 'medium', true, context, cause)
   }
 }
 
