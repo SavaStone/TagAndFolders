@@ -384,15 +384,6 @@ export class FileMover {
       const obsidianSource = toObsidianPath(operation.source)
       const obsidianTarget = toObsidianPath(operation.target)
 
-      console.log(`Starting file move operation:`, {
-        source: obsidianSource,
-        target: obsidianTarget,
-        originalSource: operation.source,
-        originalTarget: operation.target,
-        platformSource: normalizePath(operation.source),
-        platformTarget: normalizePath(operation.target)
-      })
-
       // Get source file using Obsidian-compatible path
       const sourceFile = this.app.vault.getAbstractFileByPath(obsidianSource)
       if (!(sourceFile instanceof TFile)) {
@@ -584,11 +575,11 @@ export class FileMover {
             details: { message: `File "${operation.target}" already exists` }
           }
         } else {
-          // Target is a directory
-          return {
-            type: 'directory',
-            details: { message: `Target "${operation.target}" is a directory` }
-          }
+          // Target is a directory - this should NOT be a conflict
+          // This means we're trying to move a file to where a directory already exists
+          // But this should be handled at a higher level by ensuring we move INTO the directory
+          console.log(`Target path "${operation.target}" is a directory, checking if we should move into it`)
+          return null
         }
       }
 

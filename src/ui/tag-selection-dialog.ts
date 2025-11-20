@@ -95,21 +95,54 @@ export class TagSelectionDialog extends SuggestModal<PathMappingResult> {
     suggestionItem.style.cursor = 'pointer'
     suggestionItem.style.borderRadius = '4px'
     suggestionItem.style.margin = '2px 0'
+    // FIX: User select on entire element, not children
+    suggestionItem.style.userSelect = 'none'
+    // FIX: Prevent Obsidian's default hover behavior
+    suggestionItem.style.backgroundColor = 'transparent'
+    suggestionItem.style.transition = 'background-color 0.15s ease'
+
+    // Store mapping reference for click handling
+    ;(suggestionItem as any)._tagMapping = mapping
+
+    // Add custom hover effect
+    suggestionItem.addEventListener('mouseenter', () => {
+      suggestionItem.style.backgroundColor = 'var(--background-modifier-hover)'
+    })
+
+    suggestionItem.addEventListener('mouseleave', () => {
+      suggestionItem.style.backgroundColor = 'transparent'
+    })
+
+    // Add click event listener to the entire container
+    suggestionItem.addEventListener('click', (evt: MouseEvent) => {
+      // Only handle direct clicks, not bubbling from children
+      if (evt.currentTarget === evt.target || (evt.currentTarget as HTMLElement).contains(evt.target as HTMLElement)) {
+        const mapping = (evt.currentTarget as any)._tagMapping
+        if (mapping) {
+          evt.preventDefault()
+          evt.stopPropagation()
+          this.onChooseSuggestion(mapping, evt)
+        }
+      }
+    })
+
+    // Content wrapper to isolate hover effects
+    const contentWrapper = suggestionItem.createDiv()
+    contentWrapper.style.display = 'flex'
+    contentWrapper.style.alignItems = 'center'
+    contentWrapper.style.width = '100%'
+    contentWrapper.style.pointerEvents = 'none' // Let parent handle all interactions
 
     // Tag icon (hash symbol) exactly like reference
-    const tagIcon = suggestionItem.createSpan('tag-icon')
+    const tagIcon = contentWrapper.createSpan('tag-icon')
     tagIcon.textContent = '#'
     tagIcon.style.color = 'var(--text-accent)'
     tagIcon.style.fontWeight = 'bold'
     tagIcon.style.marginRight = '8px'
     tagIcon.style.fontSize = '14px'
 
-    // No folder icon - just use tag icon
-    // const nestingLevel = (mapping.tag.match(/\//g) || []).length
-    // const folderIcon = nestingLevel > 0 ? '📁' : '🏷️'
-
     // Tag name without # prefix but keep icon separate
-    const tagName = suggestionItem.createSpan('tag-text')
+    const tagName = contentWrapper.createSpan('tag-text')
     tagName.textContent = tagToDisplayPath(mapping.tag) // Remove # and preserve slashes
     tagName.style.fontWeight = '500'
     tagName.style.color = 'var(--text-normal)'
@@ -117,7 +150,7 @@ export class TagSelectionDialog extends SuggestModal<PathMappingResult> {
     tagName.style.flex = '1'
 
     // Path preview - show with arrow and folder icon using display path
-    const pathPreview = suggestionItem.createSpan('tag-preview')
+    const pathPreview = contentWrapper.createSpan('tag-preview')
     // Use tagToDisplayPath for the path to preserve slashes
     const displayPath = tagToDisplayPath(mapping.tag)
     const formattedPath = `→ 📁 ${displayPath}/`
@@ -260,10 +293,12 @@ export class TagSelectionDialog extends SuggestModal<PathMappingResult> {
         cursor: pointer;
         border-radius: 4px;
         margin: 2px 0;
+        background-color: transparent !important;
+        isolation: isolate;
       }
 
       .tag-selection-modal .suggestion-item:hover {
-        background-color: var(--background-modifier-hover);
+        background-color: var(--background-modifier-hover) !important;
       }
 
       .tag-selection-modal .tag-icon {

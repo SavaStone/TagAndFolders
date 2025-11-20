@@ -53,8 +53,6 @@ export class TagFolderPlugin {
    */
   async initialize(): Promise<void> {
     try {
-      console.log('Initializing TagFolder Plugin...')
-
       // Initialize event listeners
       this.setupEventListeners()
 
@@ -70,8 +68,6 @@ export class TagFolderPlugin {
       // Emit plugin loaded event
       eventEmitter.emit('plugin-loaded', { version: this.state.version })
 
-      console.log('TagFolder Plugin initialized successfully')
-
     } catch (error) {
       this.state.lastError = error instanceof Error ? error : new Error('Unknown error')
       console.error('Failed to initialize TagFolder Plugin:', error)
@@ -85,8 +81,6 @@ export class TagFolderPlugin {
    */
   async cleanup(): Promise<void> {
     try {
-      console.log('Cleaning up TagFolder Plugin...')
-
       // Clean up manual organizer
       if (this.manualOrganizer) {
         this.manualOrganizer.cleanup()
@@ -98,8 +92,6 @@ export class TagFolderPlugin {
 
       // Update state
       this.state.initialized = false
-
-      console.log('TagFolder Plugin cleaned up successfully')
 
     } catch (error) {
       console.error('Error during TagFolder Plugin cleanup:', error)
@@ -137,10 +129,12 @@ export class TagFolderPlugin {
    */
   async organizeCurrentNote(): Promise<void> {
     if (!this.manualOrganizer) {
+      console.error('Plugin not initialized - no manualOrganizer')
       throw new Error('Plugin not initialized')
     }
 
     if (!this.state.initialized) {
+      console.error('Plugin initialization incomplete')
       throw new Error('Plugin initialization incomplete')
     }
 
@@ -413,8 +407,6 @@ export class TagFolderPlugin {
    */
   async testPlugin(): Promise<boolean> {
     try {
-      console.log('Testing TagFolder Plugin functionality...')
-
       // Test 1: Check initialization
       if (!this.state.initialized) {
         throw new Error('Plugin not initialized')
@@ -433,18 +425,13 @@ export class TagFolderPlugin {
       }
 
       // Test 4: Test tag scanning
-      console.log('Testing tag scanning...')
       const scanResult = await this.manualOrganizer['tagScanner'].scanFile(activeFile.path)
-      console.log(`Scan result: ${scanResult.success}, tags found: ${scanResult.tags.length}`)
 
       // Test 5: Test path mapping
       if (scanResult.tags.length > 0) {
-        console.log('Testing path mapping...')
         const pathMappings = this.manualOrganizer['pathMapper'].getTargetPaths(scanResult.tags)
-        console.log(`Path mappings: ${pathMappings.length}`)
       }
 
-      console.log('Plugin test completed successfully')
       return true
 
     } catch (error) {
@@ -460,7 +447,6 @@ export class TagFolderPlugin {
   private registerCommands(): void {
     // Commands are registered in the main Plugin class (TagFolderPluginWrapper)
     // This method exists for future command handling but doesn't directly register with workspace
-    console.log('TagFolder Plugin command handlers initialized')
   }
 
   /**
@@ -469,13 +455,11 @@ export class TagFolderPlugin {
   private setupEventListeners(): void {
     // Listen to operation completed events
     eventEmitter.on('operation-completed', (data) => {
-      console.log('Operation completed:', data)
       this.state.stats.linksUpdated += data.result.linksUpdated || 0
     })
 
     // Listen to organization completed events
     eventEmitter.on('organization-completed', (data) => {
-      console.log('Organization completed:', data)
       this.state.stats.operationsCompleted++
       this.state.stats.filesOrganized += data.result.operations.length
     })

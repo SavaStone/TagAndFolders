@@ -379,6 +379,20 @@ export function toFilesystemPath(path: string): string {
 }
 
 /**
+ * Compare two paths for equality with proper normalization
+ */
+export function arePathsEqual(path1: string, path2: string): boolean {
+  if (!path1 && !path2) return true
+  if (!path1 || !path2) return false
+
+  // Normalize both paths to Obsidian format (forward slashes) for comparison
+  const normalized1 = toObsidianPath(path1)
+  const normalized2 = toObsidianPath(path2)
+
+  return normalized1 === normalized2
+}
+
+/**
  * Check if a path is within another path
  */
 export function isPathWithin(parentPath: string, childPath: string): boolean {

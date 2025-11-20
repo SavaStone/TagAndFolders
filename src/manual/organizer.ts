@@ -17,7 +17,7 @@ import { ProgressIndicator, ProgressManager } from '@/ui/progress.js'
 import { DialogFactory } from '@/ui/dialog.js'
 import { eventEmitter } from '@/utils/events.js'
 import { FileOperationError, CancellationError } from '@/utils/errors.js'
-import { joinPath, normalizePath, getBaseName, toObsidianPath } from '@/utils/path-utils.js'
+import { joinPath, normalizePath, getBaseName, toObsidianPath, arePathsEqual } from '@/utils/path-utils.js'
 
 /**
  * Convert LinkUpdaterSettings to LinkUpdateConfig
@@ -171,12 +171,25 @@ export class ManualOrganizer {
         // Close loading dialog
         loadingDialog.close()
 
-        // Show tag selection dialog
-        const tagSelection = await this.showTagSelectionDialog(
-          currentFile.path,
-          tagMappings,
-          options
-        )
+        let tagSelection: TagSelectionResult | null
+
+        // Auto-move logic: if only one tag mapping exists, skip dialog
+        if (tagMappings.length === 1 && !options.skipDialogs) {
+          tagSelection = {
+            selectedTag: tagMappings[0]!.tag,
+            targetPath: tagMappings[0]!.path,
+            createFolder: true,
+            updateLinks: true,
+            createBackup: true
+          }
+        } else {
+          // Show tag selection dialog for multiple tags or when skipDialogs is true
+          tagSelection = await this.showTagSelectionDialog(
+            currentFile.path,
+            tagMappings,
+            options
+          )
+        }
 
         if (!tagSelection) {
           return {
@@ -193,19 +206,47 @@ export class ManualOrganizer {
           }
         }
 
-        // Execute organization
-        const result = await this.executeOrganization(
-          currentFile.path,
-          tagSelection,
-          options.showProgress
-        )
+        try {
+          // Execute organization
+          const result = await this.executeOrganization(
+            currentFile.path,
+            tagSelection,
+            options.showProgress
+          )
 
-        // Show success notification
-        if (result.success) {
-          new Notice(`Successfully organized "${currentFile.basename}" to ${result.targetPath}`)
+          // Show success notification
+          if (result.success) {
+            new Notice(`Successfully organized "${currentFile.basename}" to ${result.targetPath}`)
+          }
+
+          return result
+        } catch (error) {
+          console.error('Organization failed:', error)
+
+          // Handle specific error types
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+
+          // Show user-friendly error notification
+          if (errorMessage.includes('File not found') || errorMessage.includes('already been moved')) {
+            new Notice(`⚠️ ${errorMessage}`, 8000)
+          } else {
+            new Notice(`❌ Organization failed: ${errorMessage}`, 8000)
+          }
+
+          // Return error result
+          return {
+            success: false,
+            sourcePath: currentFile.path,
+            targetPath: currentFile.path,
+            selectedTag: tagSelection?.selectedTag || '',
+            operations: [],
+            linksUpdated: 0,
+            filesModified: 0,
+            duration: Date.now() - startTime,
+            error: errorMessage,
+            cancelled: false
+          }
         }
-
-        return result
 
       } finally {
         loadingDialog.close()
@@ -354,6 +395,7 @@ export class ManualOrganizer {
     const startTime = Date.now()
     let progressIndicator: ProgressIndicator | null = null
 
+  
     try {
       // Create progress indicator
       if (showProgress && this.progressManager) {
@@ -366,15 +408,16 @@ export class ManualOrganizer {
         })
       }
 
-      // Step 1: Validate and prepare target path
+      // Step 1: Generate target path based on selected tag
       progressIndicator?.updateProgress(25, { current: 'Preparing target location...' })
 
-      const targetPath = await this.prepareTargetPath(selection.targetPath, selection.createFolder)
+      const targetPath = this.generateTargetPathForTag(selection.selectedTag)
+      const preparedTargetPath = await this.prepareTargetPath(targetPath, selection.createFolder)
 
-      // Step 2: Create file operation
+      // Step 2: Create file operation with explicit tag context
       progressIndicator?.updateProgress(50, { current: 'Moving file...' })
 
-      const fileOperation = await this.createFileOperation(sourcePath, targetPath)
+      const fileOperation = await this.createFileOperationForTag(sourcePath, preparedTargetPath, selection.selectedTag)
 
       // Step 3: Execute file operation
       const moveResult = await this.executeFileOperation(fileOperation, selection.createBackup)
@@ -399,6 +442,18 @@ export class ManualOrganizer {
 
       const duration = Date.now() - startTime
 
+      // Special handling for no-op operations (already in correct location)
+      const isNoOp = fileOperation.status === 'completed'
+      const resultMessage = isNoOp
+        ? `File is already in the correct location for tag "${selection.selectedTag}"`
+        : `Successfully organized "${selection.selectedTag}"`
+
+      // Show appropriate notification for no-op operations
+      if (isNoOp) {
+        // For no-op, we show a subtle info notice instead of the regular success notice
+        new Notice(`ℹ️ ${resultMessage}`, 4000)
+      }
+
       // Emit organization completed event
       eventEmitter.emit('organization-completed', {
         sessionId: `org_${Date.now()}`,
@@ -407,7 +462,8 @@ export class ManualOrganizer {
           operations: [fileOperation],
           linksUpdated,
           filesModified,
-          duration
+          duration,
+          message: resultMessage
         }
       })
 
@@ -452,15 +508,11 @@ export class ManualOrganizer {
     if (createFolder) {
       // Check if folder exists first
       const folder = this.app.vault.getAbstractFileByPath(normalizedPath)
-      if (folder) {
-        console.log(`Folder already exists: ${normalizedPath}`)
-      } else {
+      if (!folder) {
         // Create the folder if it doesn't exist
         try {
           await this.app.vault.createFolder(normalizedPath)
-          console.log(`Created folder: ${normalizedPath}`)
         } catch (error) {
-          console.warn(`Failed to create folder ${normalizedPath}:`, error)
           // Try to create parent folders if needed
           try {
             const parentPath = normalizedPath.split('/').slice(0, -1).join('/')
@@ -468,10 +520,8 @@ export class ManualOrganizer {
               const parentFolder = this.app.vault.getAbstractFileByPath(parentPath)
               if (!parentFolder) {
                 await this.app.vault.createFolder(parentPath)
-                console.log(`Created parent folder: ${parentPath}`)
                 // Try again to create the target folder
                 await this.app.vault.createFolder(normalizedPath)
-                console.log(`Created folder after parent creation: ${normalizedPath}`)
               }
             }
           } catch (parentError) {
@@ -485,9 +535,28 @@ export class ManualOrganizer {
   }
 
   /**
-   * Create file operation
+   * Generate target path for a specific tag (CRITICAL FIX)
    */
-  private async createFileOperation(sourcePath: string, targetPath: string): Promise<FileOperation> {
+  private generateTargetPathForTag(tag: string): string {
+    // Get fresh mapping for the specific tag without considering current file location
+    const mapping = this.pathMapper.getTargetPath(tag)
+
+    if (!mapping.valid) {
+      throw new Error(`Invalid tag mapping for ${tag}: ${mapping.errors.join(', ')}`)
+    }
+
+    
+    return mapping.path
+  }
+
+  /**
+   * Create file operation with explicit tag context (CRITICAL FIX)
+   */
+  private async createFileOperationForTag(
+    sourcePath: string,
+    targetPath: string,
+    selectedTag: string
+  ): Promise<FileOperation> {
     // Extract filename from source path using proper path utilities
     const fileName = getBaseName(sourcePath)
     const fullTargetPath = joinPath(targetPath, fileName)
@@ -496,16 +565,32 @@ export class ManualOrganizer {
     const obsidianSource = toObsidianPath(sourcePath)
     const obsidianTarget = toObsidianPath(fullTargetPath)
 
-    console.log(`Creating file operation:`, {
-      sourcePath,
-      targetPath,
-      fileName,
-      fullTargetPath,
-      obsidianSource,
-      obsidianTarget,
-      originalSourceFormat: sourcePath,
-      originalTargetFormat: fullTargetPath
-    })
+    // CRITICAL FIX: Verify source file exists before creating operation
+    const sourceFile = this.app.vault.getAbstractFileByPath(obsidianSource)
+    if (!(sourceFile instanceof TFile)) {
+      console.error(`Source file not found at path: ${obsidianSource}`)
+      throw new Error(`File not found: ${obsidianSource}. The file may have been moved already. Please refresh the note and try again.`)
+    }
+
+    // Check if source and target are the same (no-op scenario)
+    // File is in correct location ONLY if it's already in the exact target location
+    const pathsAreEqual = arePathsEqual(obsidianSource, obsidianTarget)
+
+    // Only consider it a no-op if the complete file paths are identical
+    // This means the file is already in the exact location where it would be moved
+    // IMPORTANT: User's explicit tag selection should ALWAYS be respected, even if file is in another valid tag folder
+    if (pathsAreEqual) {
+      // Return a "no-op" file operation that indicates success without actual move
+      return {
+        id: `noop_${Date.now()}`,
+        type: 'move',
+        source: obsidianSource,
+        target: obsidianTarget,
+        status: 'completed', // Mark as completed since no action needed
+        createdAt: new Date(),
+        associatedTags: [selectedTag]
+      }
+    }
 
     return {
       id: `move_${Date.now()}`,
@@ -514,8 +599,15 @@ export class ManualOrganizer {
       target: obsidianTarget,
       status: 'pending',
       createdAt: new Date(),
-      associatedTags: []
+      associatedTags: [selectedTag]
     }
+  }
+
+  /**
+   * Create file operation (legacy method for backward compatibility)
+   */
+  private async createFileOperation(sourcePath: string, targetPath: string): Promise<FileOperation> {
+    return this.createFileOperationForTag(sourcePath, targetPath, 'unknown-tag')
   }
 
   /**
@@ -525,6 +617,26 @@ export class ManualOrganizer {
     operation: FileOperation,
     createBackup: boolean
   ): Promise<any> {
+    // Handle no-op operations (already in correct location)
+    if (operation.status === 'completed') {
+      const tagInfo = operation.associatedTags?.length > 0
+        ? ` for tag "${operation.associatedTags[0]}"`
+        : ''
+
+      return {
+        id: operation.id,
+        operationType: operation.type,
+        source: operation.source,
+        target: operation.target,
+        success: true,
+        message: `File is already in the correct location${tagInfo}: ${operation.target}`,
+        timestamp: new Date(),
+        fileSize: 0,
+        duration: 0,
+        tagInfo: operation.associatedTags || []
+      }
+    }
+
     const options: FileOperationOptions = {
       createBackup,
       createParents: this.settings.organizer.createParentDirectories,
@@ -580,7 +692,6 @@ export class ManualOrganizer {
 
       if (!conflict) {
         // No actual conflict detected, don't show dialog
-        console.log('No real conflict detected, skipping conflict dialog')
         return false
       }
 
@@ -615,7 +726,6 @@ export class ManualOrganizer {
 
       if (result.confirmed) {
         // Apply conflict resolution
-        console.log('Conflict resolution:', result.data?.strategy)
         return true
       }
 
