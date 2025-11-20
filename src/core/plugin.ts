@@ -7,6 +7,7 @@ import type { PluginSettings } from '@/types/settings.js'
 import { ManualOrganizer } from '@/manual/organizer.js'
 import { eventEmitter } from '@/utils/events.js'
 import { errorHandler } from '@/utils/errors.js'
+import { tagToDisplayPath } from '@/utils/path-utils.js'
 
 /**
  * Plugin state
@@ -226,10 +227,10 @@ export class TagFolderPlugin {
    */
   private showOrganizationPathsNotification(file: TFile, paths: Array<{tag: string, path: string}>): void {
     const pathsText = paths
-      .map(({path}) => `• ${path}/`)
+      .map(({tag}) => `• ${tagToDisplayPath(tag)}/`)
       .join('\n')
 
-    const message = `You can move "${file.basename}" to:\n${pathsText}`
+    const message = `You can move "${file.basename}" to:\n\n${pathsText}`
     new Notice(message, 10000) // Show for 10 seconds
   }
 

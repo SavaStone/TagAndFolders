@@ -177,7 +177,7 @@ export function relativePath(from: string, to: string): string {
 }
 
 /**
- * Sanitize a filename by removing invalid characters
+ * Sanitize a filename by removing invalid characters (for actual file names)
  */
 export function sanitizeFileName(name: string): string {
   if (!name) return name
@@ -186,7 +186,7 @@ export function sanitizeFileName(name: string): string {
   let sanitized = name
     .replace(/[<>:"|?*]/g, '') // Windows invalid chars
     .replace(/[\0]/g, '') // Null character
-    .replace(/[\/\\]/g, '-') // Path separators
+    .replace(/[\/\\]/g, '-') // Path separators - ONLY for actual file names
     .replace(/^\./, '_') // Don't start with dot
     .trim()
 
@@ -214,6 +214,46 @@ export function sanitizeFileName(name: string): string {
 }
 
 /**
+ * Sanitize path for display purposes (preserves directory structure)
+ */
+export function sanitizePathForDisplay(path: string): string {
+  if (!path) return path
+
+  // Remove invalid characters but preserve slashes for directory structure
+  let sanitized = path
+    .replace(/[<>:"|?*]/g, '') // Windows invalid chars
+    .replace(/[\0]/g, '') // Null character
+    .trim()
+
+  // Handle leading dots for each segment
+  const segments = sanitized.split('/')
+  const sanitizedSegments = segments.map((seg, index) => {
+    if (index === 0 && seg.startsWith('.')) {
+      return `_${seg}`
+    }
+    return seg
+  })
+
+  return sanitizedSegments.join('/')
+}
+
+/**
+ * Convert tag to display path (preserves slashes for UI display)
+ */
+export function tagToDisplayPath(tag: string): string {
+  if (!tag) return ''
+
+  // Remove # prefix if present
+  let path = tag.startsWith('#') ? tag.substring(1) : tag
+
+  // Normalize slashes to forward slashes
+  path = path.replace(/\\/g, '/')
+
+  // Sanitize for display (preserve directory structure)
+  return sanitizePathForDisplay(path)
+}
+
+/**
  * Generate a unique filename by adding a number suffix
  */
 export function generateUniqueFileName(dirPath: string, baseName: string, extension?: string): string {
@@ -228,7 +268,7 @@ export function generateUniqueFileName(dirPath: string, baseName: string, extens
 }
 
 /**
- * Convert tag to path segment
+ * Convert tag to path segment (for directory paths)
  */
 export function tagToPathSegment(tag: string): string {
   if (!tag) return ''
@@ -239,8 +279,8 @@ export function tagToPathSegment(tag: string): string {
   // Replace separators with platform-appropriate separator
   segment = segment.replace(/[\/\\]/g, PATH_SEPARATOR)
 
-  // Sanitize the segment
-  segment = sanitizeFileName(segment)
+  // Sanitize for display (preserve directory structure)
+  segment = sanitizePathForDisplay(segment)
 
   return segment
 }
@@ -252,6 +292,90 @@ export function tagToDirectoryPath(tag: string, baseDir?: string): string {
   const segment = tagToPathSegment(tag)
   const path = baseDir ? joinPath(baseDir, segment) : segment
   return normalizePath(path)
+}
+
+/**
+ * Convert tag to path segment preserving slashes for directory paths
+ */
+export function tagToPathSegmentPreserveSlashes(tag: string): string {
+  if (!tag) return ''
+
+  // Remove # prefix if present
+  let segment = tag.startsWith('#') ? tag.substring(1) : tag
+
+  // Normalize slashes to forward slashes for internal consistency
+  // We'll convert to platform-specific paths at the final step
+  segment = segment.replace(/\\/g, '/')
+
+  // Sanitize but preserve slashes for directory structure
+  segment = segment
+    .replace(/[<>:"|?*]/g, '') // Windows invalid chars
+    .replace(/[\0]/g, '') // Null character
+    .trim()
+
+  // Handle leading dots (but allow them after slashes for directory structure)
+  const segments = segment.split('/')
+  const sanitizedSegments = segments.map((seg, index) => {
+    // Don't start with dot unless it's not the first segment
+    if (index === 0 && seg.startsWith('.')) {
+      seg = `_${seg}`
+    }
+    return seg
+  })
+
+  // Handle Windows reserved names (check each segment)
+  const reservedNames = [
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+  ]
+
+  const finalSegments = sanitizedSegments.map(seg => {
+    const baseName = seg.split('.')[0]?.toUpperCase()
+    if (baseName && reservedNames.includes(baseName)) {
+      return `_${seg}`
+    }
+    return seg
+  })
+
+  // Return with forward slashes for internal use
+  return finalSegments.join('/')
+}
+
+/**
+ * Convert tag to directory path preserving slashes
+ */
+export function tagToDirectoryPathPreserveSlashes(tag: string, baseDir?: string): string {
+  const segment = tagToPathSegmentPreserveSlashes(tag)
+
+  // If we have a base directory, join it with the segment
+  if (baseDir) {
+    // Ensure baseDir uses forward slashes for joining, then normalize at the end
+    const normalizedBaseDir = baseDir.replace(/\\/g, '/')
+    const fullPath = normalizedBaseDir.endsWith('/')
+      ? `${normalizedBaseDir}${segment}`
+      : `${normalizedBaseDir}/${segment}`
+    return normalizePath(fullPath)
+  }
+
+  return normalizePath(segment)
+}
+
+/**
+ * Convert path to Obsidian API compatible format (always forward slashes)
+ * Obsidian's vault APIs expect forward slashes even on Windows
+ */
+export function toObsidianPath(path: string): string {
+  if (!path) return path
+  return path.replace(/\\/g, '/')
+}
+
+/**
+ * Convert path to filesystem compatible format (platform-specific separators)
+ */
+export function toFilesystemPath(path: string): string {
+  if (!path) return path
+  return path.replace(/\//g, PATH_SEPARATOR)
 }
 
 /**

@@ -59,7 +59,7 @@ export abstract class BaseDialog<T = any> extends Modal {
       closable: true,
       showCancel: true,
       width: 500,
-      height: 300,
+      height: 400, // Updated from reference default
       type: 'info',
       ...options
     }
@@ -77,12 +77,10 @@ export abstract class BaseDialog<T = any> extends Modal {
     contentEl.addClass('tagfolder-dialog')
     contentEl.addClass(`tagfolder-dialog-${this.options.type || 'info'}`)
 
-    // Set dialog dimensions
-    if (this.options.width) {
-      contentEl.style.width = `${this.options.width}px`
-    }
-    if (this.options.height && this.options.height > 0) {
-      contentEl.style.height = `${this.options.height}px`
+    // Set modal dimensions using reference design pattern
+    if (this.modalEl) {
+      this.modalEl.style.width = `${this.options.width || 500}px`
+      this.modalEl.style.height = `${this.options.height || 400}px`
     }
 
     // Create header
@@ -154,18 +152,19 @@ export abstract class BaseDialog<T = any> extends Modal {
   protected createFooter(): void {
     const { contentEl } = this
 
-    const footerEl = contentEl.createDiv('tagfolder-dialog-footer')
+    // Use the new button container method for proper styling
+    const footerEl = this.createButtonContainer()
 
     // Cancel button
     if (this.options.showCancel) {
       const cancelButton = new ButtonComponent(footerEl)
         .setButtonText(this.options.buttonLabels?.cancel || 'Cancel')
-        .setCta()
         .onClick(() => {
           this.handleCancel()
         })
 
-      cancelButton.buttonEl.addClass('tagfolder-dialog-cancel')
+      // Remove mod-cta from cancel button to make it secondary
+      cancelButton.buttonEl.removeClass('mod-cta')
     }
 
     // Confirm button
@@ -175,8 +174,6 @@ export abstract class BaseDialog<T = any> extends Modal {
       .onClick(() => {
         this.handleConfirm()
       })
-
-    confirmButton.buttonEl.addClass('tagfolder-dialog-confirm')
   }
 
   /**
@@ -241,6 +238,74 @@ export abstract class BaseDialog<T = any> extends Modal {
       question: '❓'
     }
     return icons[type as keyof typeof icons] || icons.info
+  }
+
+  /**
+   * Create a styled container exactly like reference
+   */
+  protected createContainer(className?: string): HTMLDivElement {
+    const container = this.contentEl.createDiv("tagfolder-modal-container")
+    container.style.padding = "20px"
+    container.style.maxHeight = "60vh"
+    container.style.overflowY = "auto"
+
+    if (className) {
+      container.addClass(className)
+    }
+
+    return container
+  }
+
+  /**
+   * Create a button container exactly like reference
+   */
+  protected createButtonContainer(): HTMLDivElement {
+    const container = this.contentEl.createDiv("tagfolder-modal-buttons")
+    container.style.display = "flex"
+    container.style.justifyContent = "flex-end"
+    container.style.gap = "10px"
+    container.style.marginTop = "20px"
+    container.style.paddingTop = "20px"
+    container.style.borderTop = "1px solid var(--background-modifier-border)"
+    return container
+  }
+
+  /**
+   * Create an info box exactly like reference
+   */
+  protected createInfoBox(container: HTMLElement, content: string, type: 'info' | 'warning' | 'error' | 'success' = 'info'): HTMLElement {
+    const infoBox = container.createDiv('tagfolder-info-box')
+    infoBox.textContent = content
+
+    // Type-specific styling like reference
+    switch (type) {
+      case 'info':
+        infoBox.style.backgroundColor = 'var(--background-secondary)'
+        infoBox.style.color = 'var(--text-muted)'
+        infoBox.style.borderLeft = '4px solid var(--interactive-accent)'
+        break
+      case 'warning':
+        infoBox.style.backgroundColor = 'var(--background-warning)'
+        infoBox.style.color = 'var(--text-warning)'
+        infoBox.style.borderLeft = '4px solid var(--text-warning)'
+        break
+      case 'error':
+        infoBox.style.backgroundColor = 'var(--background-error)'
+        infoBox.style.color = 'var(--text-error)'
+        infoBox.style.borderLeft = '4px solid var(--text-error)'
+        break
+      case 'success':
+        infoBox.style.backgroundColor = 'var(--background-success)'
+        infoBox.style.color = 'var(--text-success)'
+        infoBox.style.borderLeft = '4px solid var(--text-success)'
+        break
+    }
+
+    infoBox.style.padding = '12px'
+    infoBox.style.margin = '10px 0'
+    infoBox.style.borderRadius = '4px'
+
+    return infoBox
   }
 }
 

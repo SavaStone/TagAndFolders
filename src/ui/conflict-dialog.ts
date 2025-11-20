@@ -7,7 +7,7 @@ import { BaseDialog, DialogResult } from './dialog.js'
 import type { ConflictResolution } from '@/types/entities.js'
 import type { FileOperation } from '@/types/entities.js'
 import { eventEmitter } from '@/utils/events.js'
-import { sanitizeFileName, generateUniqueFileName } from '@/utils/path-utils.js'
+import { sanitizeFileName, generateUniqueFileName, tagToDisplayPath } from '@/utils/path-utils.js'
 import { validateFilePath } from '@/utils/validation.js'
 
 /**
@@ -80,22 +80,30 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   protected createContent(): void {
-    const { contentEl } = this
+    // Use the new styled container from BaseDialog
+    const container = this.createContainer('conflict-resolution-modal')
+
+    // Add warning info box
+    this.createInfoBox(
+      container,
+      'File conflict detected. Please choose how to resolve this issue.',
+      'warning'
+    )
 
     // Conflict header
-    this.createConflictHeader(contentEl)
+    this.createConflictHeader(container)
 
     // File comparison
-    this.createFileComparison(contentEl)
+    this.createFileComparison(container)
 
     // Resolution options
-    this.createResolutionOptions(contentEl)
+    this.createResolutionOptions(container)
 
     // Additional options
-    this.createAdditionalOptions(contentEl)
+    this.createAdditionalOptions(container)
 
     // Preview
-    this.createResolutionPreview(contentEl)
+    this.createResolutionPreview(container)
   }
 
   protected async onConfirm(): Promise<ConflictResolutionResult> {
@@ -136,70 +144,155 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   /**
-   * Create conflict header section
+   * Create conflict header section - UPDATED WITH REFERENCE DESIGN
    */
   private createConflictHeader(containerEl: HTMLElement): void {
     const headerEl = containerEl.createDiv('tagfolder-conflict-header')
+    headerEl.style.marginBottom = '20px'
 
-    const conflictIcon = headerEl.createDiv('tagfolder-conflict-icon')
-    conflictIcon.textContent = '⚠️'
+    const titleEl = headerEl.createEl('h4', { text: 'File Conflict Detected' })
+    titleEl.style.color = 'var(--text-warning)'
+    titleEl.style.marginBottom = '12px'
+    titleEl.style.display = 'flex'
+    titleEl.style.alignItems = 'center'
+    titleEl.style.gap = '8px'
 
-    const conflictMessage = headerEl.createDiv('tagfolder-conflict-message')
+    // Add warning icon
+    const iconEl = titleEl.createSpan('tagfolder-conflict-icon')
+    iconEl.textContent = '⚠️'
+    iconEl.style.fontSize = '18px'
 
-    const titleEl = conflictMessage.createEl('h3', { text: 'File Conflict Detected' })
-
-    const descriptionEl = conflictMessage.createDiv('tagfolder-conflict-description')
+    // Conflict description in styled box
+    const descriptionEl = headerEl.createDiv('tagfolder-conflict-description')
+    descriptionEl.style.padding = '12px'
+    descriptionEl.style.borderRadius = '4px'
+    descriptionEl.style.backgroundColor = 'var(--background-warning)'
+    descriptionEl.style.border = '1px solid var(--text-warning)'
+    descriptionEl.style.color = 'var(--text-warning)'
     descriptionEl.innerHTML = this.getConflictDescription()
   }
 
   /**
-   * Create file comparison section
+   * Create file comparison section - UPDATED WITH REFERENCE DESIGN
    */
   private createFileComparison(containerEl: HTMLElement): void {
     const comparisonEl = containerEl.createDiv('tagfolder-file-comparison')
+    comparisonEl.style.marginBottom = '20px'
 
-    comparisonEl.createEl('h4', { text: 'File Details' })
+    const headerEl = comparisonEl.createEl('h4', { text: 'File Details' })
+    headerEl.style.marginBottom = '12px'
+    headerEl.style.color = 'var(--text-normal)'
 
     const filesGrid = comparisonEl.createDiv('tagfolder-files-grid')
+    filesGrid.style.display = 'grid'
+    filesGrid.style.gridTemplateColumns = '1fr 1fr'
+    filesGrid.style.gap = '16px'
 
-    // Existing file
+    // Existing file card
     const existingFileEl = filesGrid.createDiv('tagfolder-file-card')
     this.createFileCard(existingFileEl, this.conflict.existingFile, 'Existing File', '📄')
 
-    // New file
+    // New file card
     const newFileEl = filesGrid.createDiv('tagfolder-file-card')
     this.createFileCard(newFileEl, this.conflict.newFile, 'File Being Organized', '📝')
 
-    // Conflict details
+    // Conflict details if available
     if (this.conflict.context) {
       const contextEl = comparisonEl.createDiv('tagfolder-conflict-context')
-      contextEl.createEl('h5', { text: 'Additional Information' })
+      contextEl.style.marginTop = '16px'
+
+      const contextHeader = contextEl.createEl('h5', { text: 'Additional Information' })
+      contextHeader.style.marginBottom = '8px'
+      contextHeader.style.color = 'var(--text-normal)'
+
+      const contextWrapper = contextEl.createDiv('tagfolder-context-wrapper')
+      contextWrapper.style.border = '1px solid var(--background-modifier-border)'
+      contextWrapper.style.borderRadius = '4px'
+      contextWrapper.style.padding = '12px'
+      contextWrapper.style.backgroundColor = 'var(--background-secondary)'
 
       for (const [key, value] of Object.entries(this.conflict.context)) {
-        const contextItem = contextEl.createDiv('tagfolder-context-item')
-        contextItem.createSpan({ text: `${key}: ` })
-        contextItem.createSpan({ text: String(value), cls: 'tagfolder-context-value' })
+        const contextItem = contextWrapper.createDiv('tagfolder-context-item')
+        contextItem.style.display = 'flex'
+        contextItem.style.justifyContent = 'space-between'
+        contextItem.style.padding = '4px 0'
+        contextItem.style.borderBottom = '1px solid var(--background-modifier-border)'
+
+        const keySpan = contextItem.createSpan({ text: `${key}:` })
+        keySpan.style.fontWeight = '500'
+
+        const valueSpan = contextItem.createSpan({
+          text: String(value),
+          cls: 'tagfolder-context-value'
+        })
+        valueSpan.style.color = 'var(--text-muted)'
       }
     }
   }
 
   /**
-   * Create file card with details
+   * Create file card with details - UPDATED WITH REFERENCE DESIGN
    */
   private createFileCard(container: HTMLElement, file: any, title: string, icon: string): void {
-    container.createDiv('tagfolder-file-icon').textContent = icon
-    container.createEl('h5', { text: title })
+    container.style.border = '1px solid var(--background-modifier-border)'
+    container.style.borderRadius = '4px'
+    container.style.padding = '16px'
+    container.style.backgroundColor = 'var(--background-secondary)'
 
+    // Card header
+    const headerEl = container.createDiv('tagfolder-file-card-header')
+    headerEl.style.display = 'flex'
+    headerEl.style.alignItems = 'center'
+    headerEl.style.marginBottom = '12px'
+
+    const fileIcon = headerEl.createDiv('tagfolder-file-icon')
+    fileIcon.textContent = icon
+    fileIcon.style.fontSize = '20px'
+    fileIcon.style.marginRight = '8px'
+
+    const titleEl = headerEl.createEl('h5', { text: title })
+    titleEl.style.margin = '0'
+    titleEl.style.color = 'var(--text-normal)'
+    titleEl.style.fontSize = '14px'
+
+    // File details
     const detailsEl = container.createDiv('tagfolder-file-details')
+    detailsEl.style.fontSize = '12px'
 
-    detailsEl.createDiv('tagfolder-file-path').textContent = file.path
-    detailsEl.createDiv('tagfolder-file-size').textContent = this.formatFileSize(file.size)
-    detailsEl.createDiv('tagfolder-file-date').textContent = this.formatDate(file.modifiedAt)
+    // File path
+    const pathEl = detailsEl.createDiv('tagfolder-file-path')
+    pathEl.style.marginBottom = '4px'
+    pathEl.style.fontFamily = 'monospace'
+    pathEl.style.color = 'var(--text-muted)'
+    pathEl.style.wordBreak = 'break-all'
+    pathEl.textContent = file.path
 
+    // File size and date in row
+    const metaRow = detailsEl.createDiv('tagfolder-file-meta-row')
+    metaRow.style.display = 'flex'
+    metaRow.style.justifyContent = 'space-between'
+    metaRow.style.marginBottom = '4px'
+
+    const sizeEl = metaRow.createDiv('tagfolder-file-size')
+    sizeEl.style.color = 'var(--text-muted)'
+    sizeEl.textContent = this.formatFileSize(file.size)
+
+    const dateEl = metaRow.createDiv('tagfolder-file-date')
+    dateEl.style.color = 'var(--text-muted)'
+    dateEl.textContent = this.formatDate(file.modifiedAt)
+
+    // Checksum if available
     if (file.checksum) {
-      detailsEl.createDiv('tagfolder-file-checksum').innerHTML = `
-        <span>Checksum: </span>
-        <code class="tagfolder-checksum">${file.checksum.substring(0, 16)}...</code>
+      const checksumEl = detailsEl.createDiv('tagfolder-file-checksum')
+      checksumEl.style.marginTop = '8px'
+      checksumEl.style.padding = '4px 8px'
+      checksumEl.style.backgroundColor = 'var(--background-modifier-border)'
+      checksumEl.style.borderRadius = '3px'
+      checksumEl.style.fontFamily = 'monospace'
+      checksumEl.style.fontSize = '10px'
+      checksumEl.innerHTML = `
+        <span style="color: var(--text-muted);">Checksum: </span>
+        <span style="color: var(--text-normal);">${file.checksum.substring(0, 16)}...</span>
       `
     }
 
@@ -207,30 +300,53 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     const extension = file.path.split('.').pop()?.toLowerCase()
     if (extension) {
       const typeEl = detailsEl.createDiv('tagfolder-file-type')
-      typeEl.createSpan({ text: 'Type: ' })
-      typeEl.createSpan({ text: extension.toUpperCase(), cls: 'tagfolder-file-extension' })
+      typeEl.style.marginTop = '8px'
+      typeEl.style.display = 'inline-block'
+      typeEl.style.padding = '2px 6px'
+      typeEl.style.backgroundColor = 'var(--interactive-accent)'
+      typeEl.style.color = 'var(--text-on-accent)'
+      typeEl.style.borderRadius = '3px'
+      typeEl.style.fontSize = '10px'
+      typeEl.style.fontWeight = '500'
+      typeEl.textContent = extension.toUpperCase()
     }
   }
 
   /**
-   * Create resolution options section
+   * Create resolution options section - UPDATED WITH REFERENCE DESIGN
    */
   private createResolutionOptions(containerEl: HTMLElement): void {
     const optionsEl = containerEl.createDiv('tagfolder-resolution-options')
+    optionsEl.style.marginBottom = '20px'
 
-    optionsEl.createEl('h4', { text: 'Resolution Options' })
+    const headerEl = optionsEl.createEl('h4', { text: 'Resolution Options' })
+    headerEl.style.marginBottom = '12px'
+    headerEl.style.color = 'var(--text-normal)'
 
     const strategies = this.getAvailableStrategies()
 
     strategies.forEach(strategy => {
       const strategyEl = optionsEl.createDiv('tagfolder-strategy-option')
+      strategyEl.style.border = '1px solid var(--background-modifier-border)'
+      strategyEl.style.borderRadius = '4px'
+      strategyEl.style.marginBottom = '8px'
+      strategyEl.style.overflow = 'hidden'
+      strategyEl.style.transition = 'border-color 0.1s ease'
 
+      // Highlight selected strategy
+      if (strategy.value === this.selectedStrategy) {
+        strategyEl.style.borderColor = 'var(--interactive-accent)'
+        strategyEl.style.backgroundColor = 'var(--background-modifier-hover)'
+      }
+
+      // Radio button (hidden)
       const radioEl = strategyEl.createEl('input', {
         type: 'radio',
         attr: { name: 'resolution-strategy' }
       })
       radioEl.value = strategy.value
       radioEl.id = `strategy-${strategy.value}`
+      radioEl.style.display = 'none'
 
       if (strategy.value === this.selectedStrategy) {
         radioEl.checked = true
@@ -238,40 +354,149 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
       this.strategyRadios.push(radioEl)
 
-      radioEl.addEventListener('change', () => {
-        if (radioEl.checked) {
-          this.selectedStrategy = strategy.value as ConflictResolution['strategy']
-          this.updateResolutionPreview()
+      // Clickable label area
+      const clickableEl = strategyEl.createDiv('tagfolder-strategy-clickable')
+      clickableEl.style.padding = '16px'
+      clickableEl.style.cursor = 'pointer'
+      clickableEl.style.display = 'flex'
+      clickableEl.style.alignItems = 'flex-start'
+      clickableEl.style.gap = '12px'
+
+      // Custom radio indicator
+      const radioIndicator = clickableEl.createDiv('tagfolder-radio-indicator')
+      radioIndicator.style.width = '16px'
+      radioIndicator.style.height = '16px'
+      radioIndicator.style.border = '2px solid var(--background-modifier-border)'
+      radioIndicator.style.borderRadius = '50%'
+      radioIndicator.style.marginTop = '2px'
+      radioIndicator.style.flexShrink = '0'
+
+      if (strategy.value === this.selectedStrategy) {
+        radioIndicator.style.borderColor = 'var(--interactive-accent)'
+        radioIndicator.style.backgroundColor = 'var(--interactive-accent)'
+        radioIndicator.innerHTML = '<div style="width: 6px; height: 6px; background: white; border-radius: 50%; margin: 3px;"></div>'
+      }
+
+      // Strategy content
+      const contentEl = clickableEl.createDiv('tagfolder-strategy-content')
+      contentEl.style.flex = '1'
+
+      const strategyHeader = contentEl.createDiv('tagfolder-strategy-header')
+      strategyHeader.style.display = 'flex'
+      strategyHeader.style.justifyContent = 'space-between'
+      strategyHeader.style.alignItems = 'center'
+      strategyHeader.style.marginBottom = '4px'
+
+      const titleEl = strategyHeader.createSpan('tagfolder-strategy-title')
+      titleEl.textContent = strategy.title
+      titleEl.style.fontWeight = '500'
+      titleEl.style.color = 'var(--text-normal)'
+
+      if (strategy.tag) {
+        const tagEl = strategyHeader.createSpan('tagfolder-strategy-tag')
+        tagEl.textContent = strategy.tag
+        tagEl.style.fontSize = '10px'
+        tagEl.style.padding = '2px 6px'
+        tagEl.style.borderRadius = '3px'
+        tagEl.style.fontWeight = '500'
+
+        // Color based on tag type
+        if (strategy.tag.toLowerCase().includes('recommended')) {
+          tagEl.style.backgroundColor = 'var(--background-success)'
+          tagEl.style.color = 'var(--text-success)'
+        } else if (strategy.tag.toLowerCase().includes('destructive')) {
+          tagEl.style.backgroundColor = 'var(--background-error)'
+          tagEl.style.color = 'var(--text-error)'
+        } else if (strategy.tag.toLowerCase().includes('safe')) {
+          tagEl.style.backgroundColor = 'var(--background-info)'
+          tagEl.style.color = 'var(--text-info)'
+        } else {
+          tagEl.style.backgroundColor = 'var(--background-modifier-border)'
+          tagEl.style.color = 'var(--text-muted)'
         }
-      })
-
-          const radioId = radioEl.id || `strategy-${strategy.value}`
-      const labelEl = strategyEl.createEl('label', {
-        attr: { for: radioId }
-      })
-
-      const strategyHeader = labelEl.createDiv('tagfolder-strategy-header')
-      strategyHeader.createSpan('tagfolder-strategy-title').textContent = strategy.title
-      strategyHeader.createSpan('tagfolder-strategy-tag').textContent = strategy.tag || ''
+      }
 
       if (strategy.description) {
-        labelEl.createDiv('tagfolder-strategy-description').textContent = strategy.description
+        const descEl = contentEl.createDiv('tagfolder-strategy-description')
+        descEl.textContent = strategy.description
+        descEl.style.fontSize = '12px'
+        descEl.style.color = 'var(--text-muted)'
+        descEl.style.marginBottom = '4px'
+        descEl.style.lineHeight = '1.4'
       }
 
       if (strategy.risk) {
-        labelEl.createDiv('tagfolder-strategy-risk').textContent = `⚠️ ${strategy.risk}`
+        const riskEl = contentEl.createDiv('tagfolder-strategy-risk')
+        riskEl.textContent = `⚠️ ${strategy.risk}`
+        riskEl.style.fontSize = '11px'
+        riskEl.style.color = 'var(--text-warning)'
+        riskEl.style.fontWeight = '500'
+      }
+
+      // Event handlers
+      const handleSelection = () => {
+        // Update radio and visual state
+        radioEl.checked = true
+        this.selectedStrategy = strategy.value as ConflictResolution['strategy']
+
+        // Update all strategy visuals
+        this.updateStrategyVisuals()
+
+        // Update preview
+        this.updateResolutionPreview()
+      }
+
+      clickableEl.addEventListener('click', handleSelection)
+      radioEl.addEventListener('change', handleSelection)
+    })
+  }
+
+  /**
+   * Update visual state of all strategy options
+   */
+  private updateStrategyVisuals(): void {
+    const allStrategies = this.contentEl.querySelectorAll('.tagfolder-strategy-option')
+
+    allStrategies.forEach(strategyEl => {
+      const radio = strategyEl.querySelector('input[type="radio"]') as HTMLInputElement
+      const indicator = strategyEl.querySelector('.tagfolder-radio-indicator') as HTMLElement
+
+      if (radio.checked) {
+        // Highlight selected
+        strategyEl.setAttribute('style', 'border: 1px solid var(--interactive-accent); border-radius: 4px; margin-bottom: 8px; overflow: hidden; transition: border-color 0.1s ease; background-color: var(--background-modifier-hover);')
+
+        if (indicator) {
+          indicator.setAttribute('style', 'width: 16px; height: 16px; border: 2px solid var(--interactive-accent); border-radius: 50%; margin-top: 2px; flex-shrink: 0; background-color: var(--interactive-accent);')
+          indicator.innerHTML = '<div style="width: 6px; height: 6px; background: white; border-radius: 50%; margin: 3px;"></div>'
+        }
+      } else {
+        // Unhighlight others
+        strategyEl.setAttribute('style', 'border: 1px solid var(--background-modifier-border); border-radius: 4px; margin-bottom: 8px; overflow: hidden; transition: border-color 0.1s ease;')
+
+        if (indicator) {
+          indicator.setAttribute('style', 'width: 16px; height: 16px; border: 2px solid var(--background-modifier-border); border-radius: 50%; margin-top: 2px; flex-shrink: 0;')
+          indicator.innerHTML = ''
+        }
       }
     })
   }
 
   /**
-   * Create additional options section
+   * Create additional options section - UPDATED WITH REFERENCE DESIGN
    */
   private createAdditionalOptions(containerEl: HTMLElement): void {
     const optionsEl = containerEl.createDiv('tagfolder-additional-options')
+    optionsEl.style.marginBottom = '20px'
+
+    // Options wrapper with consistent styling
+    const optionsWrapper = optionsEl.createDiv('tagfolder-options-wrapper')
+    optionsWrapper.style.border = '1px solid var(--background-modifier-border)'
+    optionsWrapper.style.borderRadius = '4px'
+    optionsWrapper.style.padding = '16px'
+    optionsWrapper.style.backgroundColor = 'var(--background-secondary)'
 
     // Apply to all similar conflicts
-    const applyToAllSetting = new Setting(optionsEl)
+    const applyToAllSetting = new Setting(optionsWrapper)
       .setName('Apply to all similar conflicts')
       .setDesc('Use this resolution for all conflicts of this type in this operation')
       .addToggle(toggle => {
@@ -282,7 +507,8 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
       })
 
     // Custom file name for rename strategy
-    const customNameContainer = optionsEl.createDiv('tagfolder-custom-name-container')
+    const customNameContainer = optionsWrapper.createDiv('tagfolder-custom-name-container')
+    customNameContainer.style.marginTop = '16px'
     customNameContainer.style.display = this.selectedStrategy === 'rename' ? 'block' : 'none'
 
     const customNameSetting = new Setting(customNameContainer)
@@ -300,24 +526,23 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
           this.updateResolutionPreview()
         })
       })
-
-    // Store container reference for showing/hiding
-    // Store container reference for showing/hiding
-    void 0 // Placeholder to prevent unused variable warning
   }
 
   /**
-   * Create resolution preview section
+   * Create resolution preview section - UPDATED WITH REFERENCE DESIGN
    */
   private createResolutionPreview(containerEl: HTMLElement): void {
     const previewEl = containerEl.createDiv('tagfolder-resolution-preview')
 
-    previewEl.createEl('h4', { text: 'Resolution Preview' })
+    const headerEl = previewEl.createEl('h4', { text: 'Resolution Preview' })
+    headerEl.style.marginBottom = '12px'
+    headerEl.style.color = 'var(--text-normal)'
+
     this.updateResolutionPreview()
   }
 
   /**
-   * Update resolution preview
+   * Update resolution preview - UPDATED WITH REFERENCE DESIGN
    */
   private updateResolutionPreview(): void {
     const previewEl = this.contentEl.querySelector('.tagfolder-resolution-preview')
@@ -329,15 +554,21 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     }
 
     const previewContent = previewEl.createDiv('tagfolder-preview-content')
+    previewContent.style.border = '1px solid var(--background-modifier-border)'
+    previewContent.style.borderRadius = '4px'
+    previewContent.style.padding = '16px'
+    previewContent.style.backgroundColor = 'var(--background-secondary)'
 
     switch (this.selectedStrategy) {
       case 'skip':
         previewContent.innerHTML = `
-          <div class="tagfolder-preview-item">
-            <span class="tagfolder-preview-icon">⏭️</span>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <span style="font-size: 20px; flex-shrink: 0;">⏭️</span>
             <div>
-              <strong>Skip operation</strong><br>
-              The file will not be moved and no changes will be made.
+              <div style="font-weight: 600; color: var(--text-normal); margin-bottom: 4px;">Skip operation</div>
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                The file will not be moved and no changes will be made.
+              </div>
             </div>
           </div>
         `
@@ -346,12 +577,14 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
       case 'rename':
         const newName = this.newFileName || 'renamed-file.md'
         previewContent.innerHTML = `
-          <div class="tagfolder-preview-item">
-            <span class="tagfolder-preview-icon">✏️</span>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <span style="font-size: 20px; flex-shrink: 0;">✏️</span>
             <div>
-              <strong>Rename file</strong><br>
-              File will be moved with a new name:<br>
-              <code>${newName}</code>
+              <div style="font-weight: 600; color: var(--text-normal); margin-bottom: 4px;">Rename file</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
+                File will be moved with a new name:
+              </div>
+              <code style="background: var(--background-modifier-border); padding: 4px 8px; border-radius: 3px; font-size: 11px; color: var(--text-normal);">${newName}</code>
             </div>
           </div>
         `
@@ -359,37 +592,28 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
       case 'replace':
         previewContent.innerHTML = `
-          <div class="tagfolder-preview-item">
-            <span class="tagfolder-preview-icon">🔄</span>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <span style="font-size: 20px; flex-shrink: 0;">🔄</span>
             <div>
-              <strong>Replace existing file</strong><br>
-              The existing file will be overwritten and lost.
+              <div style="font-weight: 600; color: var(--text-normal); margin-bottom: 4px;">Replace existing file</div>
+              <div style="font-size: 12px; color: var(--text-error); line-height: 1.4;">
+                ⚠️ The existing file will be overwritten and permanently lost.
+              </div>
             </div>
           </div>
         `
         break
 
-      case 'rename':
-        const subfolderName = new Date().toISOString().split('T')[0]
-        previewContent.innerHTML = `
-          <div class="tagfolder-preview-item">
-            <span class="tagfolder-preview-icon">📁</span>
-            <div>
-              <strong>Move to subfolder</strong><br>
-              File will be moved to a conflict subfolder:<br>
-              <code>conflicts/${subfolderName}/</code>
-            </div>
-          </div>
-        `
-        break
-
+      
       default:
         previewContent.innerHTML = `
-          <div class="tagfolder-preview-item">
-            <span class="tagfolder-preview-icon">❓</span>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <span style="font-size: 20px; flex-shrink: 0;">❓</span>
             <div>
-              <strong>Custom resolution</strong><br>
-              Additional information may be required.
+              <div style="font-weight: 600; color: var(--text-normal); margin-bottom: 4px;">Custom resolution</div>
+              <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                Additional information may be required.
+              </div>
             </div>
           </div>
         `

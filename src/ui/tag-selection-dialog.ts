@@ -1,12 +1,12 @@
 /**
  * Tag Selection Dialog - Allows users to select tags for organization
+ * Based on reference design using SuggestModal
  */
 
-import { App, Setting, Notice } from 'obsidian'
-import { BaseDialog, DialogResult } from './dialog.js'
+import { App, SuggestModal } from 'obsidian'
 import type { PathMappingResult } from '@/scanning/path-mapper.js'
 import { eventEmitter } from '@/utils/events.js'
-import { tagToDirectoryPath } from '@/utils/path-utils.js'
+import { tagToDirectoryPath, tagToDisplayPath } from '@/utils/path-utils.js'
 
 /**
  * Tag selection result
@@ -41,538 +41,323 @@ export interface TagSelectionDialogOptions {
 }
 
 /**
- * Tag Selection Dialog
+ * Tag Selection Dialog using SuggestModal design from reference
  */
-export class TagSelectionDialog extends BaseDialog<TagSelectionResult> {
+export class TagSelectionDialog extends SuggestModal<PathMappingResult> {
   private tagMappings: PathMappingResult[]
   private currentNotePath: string | undefined
   private dialogOptions: TagSelectionDialogOptions
-  private selectedTag: string | null = null
-  private tagListEl!: HTMLDivElement
-  private previewEl!: HTMLDivElement
-  private createFolderToggle!: HTMLInputElement
-  private updateLinksToggle!: HTMLInputElement
-  private createBackupToggle!: HTMLInputElement
-  private confirmButton!: HTMLButtonElement
+  private onResolve: (result: TagSelectionResult) => void
 
   constructor(app: App, options: TagSelectionDialogOptions) {
-    super(app, {
-      title: options.title || 'Select Tag for Organization',
-      width: 600,
-      height: 500,
-      type: 'question',
-      showCancel: true,
-      buttonLabels: {
-        confirm: 'Organize Note',
-        cancel: 'Cancel'
-      }
-    })
+    super(app)
 
     this.tagMappings = options.tagMappings
     this.currentNotePath = options.currentNotePath
     this.dialogOptions = options
+
+    // Set modal title
+    this.setTitle(options.title || 'Select Tag for Organization')
+
+    // Add CSS class for styling - matches reference design
+    this.modalEl.addClass('tag-selection-modal')
+
+    // Create promise for result
+    this.onResolve = () => {}
   }
 
-  protected createContent(): void {
-    const { contentEl } = this
+  // Returns suggestions for SuggestModal
+  getSuggestions(query: string): PathMappingResult[] {
+    if (this.tagMappings.length === 0) {
+      return []
+    }
 
-    // Current file info
+    // Filter suggestions based on query
+    const filtered = this.tagMappings.filter(mapping =>
+      mapping.tag.toLowerCase().includes(query.toLowerCase())
+    )
+
+    // Sort by hierarchy (more nested tags first) like reference
+    return filtered.sort((a, b) => {
+      const aNesting = (a.tag.match(/\//g) || []).length
+      const bNesting = (b.tag.match(/\//g) || []).length
+      return bNesting - aNesting
+    })
+  }
+
+  // Renders each suggestion item - EXACTLY like reference design
+  renderSuggestion(mapping: PathMappingResult, el: HTMLElement) {
+    // Main container with flex layout like reference
+    const suggestionItem = el.createDiv('suggestion-item')
+    suggestionItem.style.display = 'flex'
+    suggestionItem.style.alignItems = 'center'
+    suggestionItem.style.padding = '8px 12px'
+    suggestionItem.style.cursor = 'pointer'
+    suggestionItem.style.borderRadius = '4px'
+    suggestionItem.style.margin = '2px 0'
+
+    // Tag icon (hash symbol) exactly like reference
+    const tagIcon = suggestionItem.createSpan('tag-icon')
+    tagIcon.textContent = '#'
+    tagIcon.style.color = 'var(--text-accent)'
+    tagIcon.style.fontWeight = 'bold'
+    tagIcon.style.marginRight = '8px'
+    tagIcon.style.fontSize = '14px'
+
+    // No folder icon - just use tag icon
+    // const nestingLevel = (mapping.tag.match(/\//g) || []).length
+    // const folderIcon = nestingLevel > 0 ? '📁' : '🏷️'
+
+    // Tag name without # prefix but keep icon separate
+    const tagName = suggestionItem.createSpan('tag-text')
+    tagName.textContent = tagToDisplayPath(mapping.tag) // Remove # and preserve slashes
+    tagName.style.fontWeight = '500'
+    tagName.style.color = 'var(--text-normal)'
+    tagName.style.marginRight = '8px'
+    tagName.style.flex = '1'
+
+    // Path preview - show with arrow and folder icon using display path
+    const pathPreview = suggestionItem.createSpan('tag-preview')
+    // Use tagToDisplayPath for the path to preserve slashes
+    const displayPath = tagToDisplayPath(mapping.tag)
+    const formattedPath = `→ 📁 ${displayPath}/`
+    pathPreview.textContent = formattedPath
+    pathPreview.style.fontSize = '12px'
+    pathPreview.style.color = 'var(--text-muted)'
+    pathPreview.style.fontFamily = 'monospace'
+    pathPreview.style.opacity = '0.8'
+  }
+
+  // Called when suggestion is selected
+  onChooseSuggestion(mapping: PathMappingResult, evt: MouseEvent | KeyboardEvent) {
+    this.resolveSelection(mapping)
+  }
+
+  // Override onOpen to add custom content exactly like reference
+  override onOpen() {
+    super.onOpen()
+
+    // Add custom content
     if (this.currentNotePath) {
-      this.createFileInfo(contentEl)
+      this.addFileInfo()
     }
 
-    // Tag selection list
-    this.createTagList(contentEl)
-
-    // Preview section
-    this.createPreview(contentEl)
-
-    // Advanced options
-    this.createAdvancedOptions(contentEl)
-
-    // Initial selection
-    if (this.tagMappings.length > 0) {
-      this.selectTag(this.tagMappings[0]?.tag || '')
-    } else if (this.dialogOptions.defaultTag) {
-      this.selectTag(this.dialogOptions.defaultTag)
+    // Set empty state if no tags
+    if (this.tagMappings.length === 0) {
+      this.setEmptyState()
+    } else {
+      // Add instructions exactly like reference
+      this.addInstructions()
     }
+
+    // Add reference CSS styles
+    this.addReferenceStyles()
   }
 
-  protected async onConfirm(): Promise<TagSelectionResult> {
-    if (!this.selectedTag) {
-      throw new Error('Please select a tag to organize the note')
-    }
-
-    const selectedMapping = this.tagMappings.find(m => m.tag === this.selectedTag)
-    if (!selectedMapping) {
-      throw new Error('Selected tag mapping not found')
-    }
-
-    return {
-      selectedTag: this.selectedTag,
-      targetPath: selectedMapping.path,
-      createFolder: this.createFolderToggle.checked,
-      updateLinks: this.updateLinksToggle.checked,
-      createBackup: this.createBackupToggle.checked
-    }
-  }
-
-  protected override createHeader(): void {
-    super.createHeader()
-
-    // Add description
-    const { contentEl } = this
-    const descriptionEl = contentEl.createDiv('tagfolder-dialog-description')
-    descriptionEl.textContent = 'Choose a tag to organize your note. The note will be moved to the corresponding folder.'
-  }
-
-  /**
-   * Create file information section - COMPACT VERSION
-   */
-  private createFileInfo(containerEl: HTMLElement): void {
-    const fileInfoEl = containerEl.createDiv('tagfolder-file-info-compact')
+  // Add file information at the top - matches reference design
+  private addFileInfo(): void {
+    const infoEl = this.contentEl.createDiv('tag-selection-info')
+    infoEl.style.padding = '12px 16px'
+    infoEl.style.backgroundColor = 'var(--background-secondary)'
+    infoEl.style.borderBottom = '1px solid var(--background-modifier-border)'
+    infoEl.style.position = 'relative'
+    infoEl.style.paddingLeft = '20px'
 
     const fileName = this.currentNotePath?.split('/').pop() || 'Current Note'
 
-    // Иконка и имя файла в одну строку
-    const headerRow = fileInfoEl.createDiv('tagfolder-file-header')
-    headerRow.createEl('span', { cls: 'tagfolder-file-icon-compact', text: '📄' })
-    headerRow.createEl('span', { text: fileName, cls: 'tagfolder-filename' })
+    // File icon and name
+    const fileHeader = infoEl.createDiv()
+    fileHeader.style.display = 'flex'
+    fileHeader.style.alignItems = 'center'
+    fileHeader.style.marginBottom = '4px'
 
+    const fileIcon = fileHeader.createSpan()
+    fileIcon.textContent = '📄'
+    fileIcon.style.marginRight = '8px'
+    fileIcon.style.fontSize = '16px'
+
+    const fileNameEl = fileHeader.createSpan()
+    fileNameEl.textContent = fileName
+    fileNameEl.style.fontWeight = '500'
+    fileNameEl.style.color = 'var(--text-normal)'
+
+    // File path
     if (this.currentNotePath) {
-      const locationRow = fileInfoEl.createDiv('tagfolder-file-location')
-      locationRow.createEl('span', { text: '📍', cls: 'tagfolder-location-icon' })
-      locationRow.createEl('span', {
-        text: `${this.currentNotePath}`,
-        cls: 'tagfolder-location-text'
+      const pathEl = infoEl.createDiv()
+      pathEl.style.fontSize = '12px'
+      pathEl.style.color = 'var(--text-muted)'
+      pathEl.style.fontFamily = 'monospace'
+      pathEl.textContent = this.currentNotePath
+    }
+  }
+
+  // Set empty state when no tags available
+  private setEmptyState(): void {
+    // SuggestModal doesn't have promptEl, we'll handle it differently
+    const result = this.resultContainerEl
+    if (result) {
+      result.empty()
+      result.createEl('div', {
+        text: 'No tags found',
+        cls: 'prompt-instructions'
       })
     }
   }
 
-  /**
-   * Create tag selection list - COMPACT VERSION
-   */
-  private createTagList(containerEl: HTMLElement): void {
-    const tagListContainer = containerEl.createDiv('tagfolder-tag-list-container-compact')
-
-    // Заголовок с иконкой и количеством
-    const headerEl = tagListContainer.createDiv('tagfolder-list-header-compact')
-    headerEl.createEl('span', { cls: 'tagfolder-list-icon', text: '🏷️' })
-    headerEl.createEl('span', { text: 'Available tags', cls: 'tagfolder-list-title' })
-    headerEl.createEl('span', {
-      text: `${this.tagMappings.length}`,
-      cls: 'tagfolder-list-count'
-    })
-
-    this.tagListEl = tagListContainer.createDiv('tagfolder-tag-list-compact')
-
-    if (this.tagMappings.length === 0) {
-      const noTagsEl = this.tagListEl.createDiv('tagfolder-no-tags-compact')
-      noTagsEl.createEl('span', { cls: 'tagfolder-no-tags-icon', text: '🔍' })
-      noTagsEl.createEl('span', { text: 'No tags found', cls: 'tagfolder-no-tags-text' })
-    } else {
-      // Сортируем по иерархии (более вложенные теги выше)
-      const sortedMappings = [...this.tagMappings].sort((a, b) => {
-        const aNesting = (a.tag.match(/\//g) || []).length
-        const bNesting = (b.tag.match(/\//g) || []).length
-        return bNesting - aNesting
+  // Add instructions exactly like reference
+  private addInstructions(): void {
+    // SuggestModal doesn't have promptEl, we'll use the result container
+    const result = this.resultContainerEl
+    if (result && this.tagMappings.length > 0) {
+      // Add instructions at the top of results
+      const instructionsEl = result.createEl('div', {
+        text: 'Choose a tag to organize your note. The note will be moved to the corresponding folder.',
+        cls: 'prompt-instructions'
       })
-
-      sortedMappings.forEach((mapping, index) => {
-        this.createTagItemCompact(mapping, index)
-      })
+      instructionsEl.style.fontWeight = '600'
+      instructionsEl.style.color = 'var(--text-normal)'
+      instructionsEl.style.marginBottom = '12px'
     }
   }
 
-  /**
-   * Create compact tag item like in the screenshot
-   */
-  private createTagItemCompact(mapping: PathMappingResult, index: number): HTMLElement {
-    const tagItemEl = this.tagListEl.createDiv('tagfolder-tag-item-compact')
-
-    // Определяем уровень иерархии
-    const nestingLevel = (mapping.tag.match(/\//g) || []).length
-    const folderIcon = nestingLevel > 0 ? '📁' : '🏷️'
-
-    // Скрытый radio button
-    const radioEl = tagItemEl.createEl('input', {
-      type: 'radio',
-      attr: { name: 'tag-selection' }
-    })
-    radioEl.value = mapping.tag
-    radioEl.id = `tag-${index}`
-    radioEl.style.display = 'none'
-
-    // Контейнер для клика
-    const clickContainer = tagItemEl.createDiv('tagfolder-tag-click-area')
-
-    // Радио кнопка
-    const radioCircle = clickContainer.createDiv('tagfolder-radio-circle')
-    const radioInner = radioCircle.createDiv('tagfolder-radio-inner')
-
-    // Иконка папки
-    clickContainer.createEl('span', {
-      cls: 'tagfolder-folder-icon-compact',
-      text: folderIcon
-    })
-
-    // Название тега
-    clickContainer.createEl('span', {
-      text: mapping.tag,
-      cls: 'tagfolder-tag-name-compact'
-    })
-
-    // Стрелка и путь
-    const pathContainer = clickContainer.createDiv('tagfolder-path-container')
-    pathContainer.createEl('span', {
-      text: '→',
-      cls: 'tagfolder-arrow'
-    })
-    pathContainer.createEl('span', {
-      text: mapping.path,
-      cls: 'tagfolder-path-compact'
-    })
-
-    // Set initial selection
-    if (index === 0 && !this.dialogOptions.defaultTag) {
-      radioEl.checked = true
-      this.selectedTag = mapping.tag
-      tagItemEl.addClass('selected')
-      radioCircle.addClass('selected')
+  // Handle selection resolution
+  private resolveSelection(mapping: PathMappingResult): void {
+    const result: TagSelectionResult = {
+      selectedTag: mapping.tag,
+      targetPath: mapping.path,
+      createFolder: true, // Default values
+      updateLinks: true,
+      createBackup: true
     }
 
-    if (this.dialogOptions.defaultTag && mapping.tag === this.dialogOptions.defaultTag) {
-      radioEl.checked = true
-      this.selectedTag = mapping.tag
-      tagItemEl.addClass('selected')
-      radioCircle.addClass('selected')
-    }
-
-    // Event handlers
-    const handleClick = () => {
-      radioEl.checked = true
-      this.selectTag(mapping.tag)
-      this.updateCompactSelection(tagItemEl, radioCircle)
-    }
-
-    clickContainer.addEventListener('click', handleClick)
-    radioEl.addEventListener('change', () => {
-      if (radioEl.checked) {
-        this.updateCompactSelection(tagItemEl, radioCircle)
-      }
-    })
-
-    return tagItemEl
-  }
-
-  /**
-   * Update compact visual selection
-   */
-  private updateCompactSelection(tagItemEl: HTMLElement, radioCircle: HTMLElement): void {
-    // Remove previous selection
-    this.tagListEl.querySelectorAll('.tagfolder-tag-item-compact.selected').forEach(el => {
-      el.removeClass('selected')
-    })
-    this.tagListEl.querySelectorAll('.tagfolder-radio-circle.selected').forEach(el => {
-      el.removeClass('selected')
-    })
-
-    // Add selection to current item
-    tagItemEl.addClass('selected')
-    radioCircle.addClass('selected')
-  }
-
-  /**
-   * Create individual tag item with beautiful UI (legacy)
-   */
-  private createTagItem(mapping: PathMappingResult, index: number): HTMLElement {
-    const tagItemEl = this.tagListEl.createDiv('tagfolder-tag-item')
-
-    // Определяем уровень иерархии для визуального отображения
-    const nestingLevel = (mapping.tag.match(/\//g) || []).length
-    const isNested = nestingLevel > 0
-    const folderIcon = nestingLevel > 1 ? '📁' : (nestingLevel > 0 ? '📂' : '🏷️')
-
-    // Создаем иерархический отступ
-    const indent = nestingLevel * 24
-    tagItemEl.style.paddingLeft = `${indent + 8}px`
-
-    // Main container with hover effects
-    const tagContentEl = tagItemEl.createDiv('tagfolder-tag-content')
-
-    // Tag radio button (скрытый, используем кастомный дизайн)
-    const radioEl = tagItemEl.createEl('input', {
-      type: 'radio',
-      attr: { name: 'tag-selection' }
-    })
-    radioEl.value = mapping.tag
-    radioEl.id = `tag-${index}`
-    radioEl.style.display = 'none'
-
-    // Кастомный radio button с красивым дизайном
-    const customRadioEl = tagContentEl.createDiv('tagfolder-custom-radio')
-    const radioInnerEl = customRadioEl.createDiv('tagfolder-radio-inner')
-
-    // Tag info container
-    const tagInfoEl = tagContentEl.createDiv('tagfolder-tag-info')
-
-    // Tag header with icon and name
-    const tagHeaderEl = tagInfoEl.createDiv('tagfolder-tag-header')
-
-    // Иконка папки
-    tagHeaderEl.createEl('span', {
-      cls: 'tagfolder-folder-icon',
-      text: folderIcon
-    })
-
-    // Tag name с цветовой индикацией иерархии
-    const tagNameEl = tagHeaderEl.createEl('span', {
-      cls: 'tagfolder-tag-name',
-      text: mapping.tag
-    })
-
-    // Добавляем цветовую метку для вложенных тегов
-    if (isNested) {
-      const nestedBadge = tagHeaderEl.createEl('span', {
-        cls: 'tagfolder-nested-badge',
-        text: 'nested'
-      })
-    }
-
-    // Tag path visualization
-    const tagPathEl = tagInfoEl.createDiv('tagfolder-tag-path')
-    tagPathEl.createEl('span', { cls: 'tagfolder-path-arrow', text: '→' })
-    tagPathEl.createEl('code', {
-      text: `${mapping.path}/`,
-      cls: 'tagfolder-path-display'
-    })
-
-    // Priority indicator (если есть)
-    if (mapping.priority > 0) {
-      const priorityEl = tagInfoEl.createDiv('tagfolder-priority')
-      const stars = '⭐'.repeat(Math.min(mapping.priority, 3))
-      priorityEl.createEl('span', {
-        cls: 'tagfolder-priority-stars',
-        text: stars
-      })
-    }
-
-    // Set initial selection
-    if (index === 0 && !this.dialogOptions.defaultTag) {
-      radioEl.checked = true
-      customRadioEl.addClass('selected')
-      this.selectedTag = mapping.tag
-      tagItemEl.addClass('selected')
-    }
-
-    if (this.dialogOptions.defaultTag && mapping.tag === this.dialogOptions.defaultTag) {
-      radioEl.checked = true
-      customRadioEl.addClass('selected')
-      this.selectedTag = mapping.tag
-      tagItemEl.addClass('selected')
-    }
-
-    // Event handlers
-    radioEl.addEventListener('change', () => {
-      if (radioEl.checked) {
-        this.selectTag(mapping.tag)
-        this.updateVisualSelection(tagItemEl, customRadioEl)
-      }
-    })
-
-    // Click handler for the entire item (принцип Нильсена: большие области клика)
-    tagContentEl.addEventListener('click', (e) => {
-      e.preventDefault()
-      radioEl.checked = true
-      this.selectTag(mapping.tag)
-      this.updateVisualSelection(tagItemEl, customRadioEl)
-    })
-
-    // Keyboard accessibility
-    tagContentEl.setAttribute('tabindex', '0')
-    tagContentEl.setAttribute('role', 'radio')
-    tagContentEl.setAttribute('aria-checked', radioEl.checked ? 'true' : 'false')
-    tagContentEl.setAttribute('aria-label', `Tag: ${mapping.tag}, Path: ${mapping.path}`)
-
-    tagContentEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        radioEl.checked = true
-        this.selectTag(mapping.tag)
-        this.updateVisualSelection(tagItemEl, customRadioEl)
-      }
-    })
-
-    return tagItemEl
-  }
-
-  /**
-   * Update visual selection state
-   */
-  private updateVisualSelection(tagItemEl: HTMLElement, customRadioEl: HTMLElement): void {
-    // Remove previous selection
-    this.tagListEl.querySelectorAll('.tagfolder-tag-item.selected').forEach(el => {
-      el.removeClass('selected')
-    })
-    this.tagListEl.querySelectorAll('.tagfolder-custom-radio.selected').forEach(el => {
-      el.removeClass('selected')
-    })
-
-    // Add selection to current item
-    tagItemEl.addClass('selected')
-    customRadioEl.addClass('selected')
-  }
-
-  /**
-   * Create preview section
-   */
-  private createPreview(containerEl: HTMLElement): void {
-    const previewContainer = containerEl.createDiv('tagfolder-preview-container')
-
-    previewContainer.createEl('h3', { text: 'Organization Preview' })
-
-    this.previewEl = previewContainer.createDiv('tagfolder-preview')
-
-    this.updatePreview()
-  }
-
-  /**
-   * Create advanced options section
-   */
-  private createAdvancedOptions(containerEl: HTMLElement): void {
-    const optionsContainer = containerEl.createDiv('tagfolder-advanced-options')
-
-    optionsContainer.createEl('h3', { text: 'Options' })
-
-    // Create folder if it doesn't exist
-    const createFolderSetting = new Setting(optionsContainer)
-      .setName('Create folder')
-      .setDesc('Create the target folder if it doesn\'t exist')
-      .addToggle(toggle => {
-        toggle.setValue(true)
-        // Access toggle element through alternative method
-        setTimeout(() => {
-          this.createFolderToggle = createFolderSetting.settingEl.querySelector('input[type="checkbox"]') as HTMLInputElement
-        }, 0)
-      })
-
-    // Update links after moving
-    const updateLinksSetting = new Setting(optionsContainer)
-      .setName('Update links')
-      .setDesc('Update all links to this note in other files')
-      .addToggle(toggle => {
-        toggle.setValue(true)
-        setTimeout(() => {
-          this.updateLinksToggle = updateLinksSetting.settingEl.querySelector('input[type="checkbox"]') as HTMLInputElement
-        }, 0)
-      })
-
-    // Create backup before operation
-    const createBackupSetting = new Setting(optionsContainer)
-      .setName('Create backup')
-      .setDesc('Create a backup of the note before moving it')
-      .addToggle(toggle => {
-        toggle.setValue(true)
-        setTimeout(() => {
-          this.createBackupToggle = createBackupSetting.settingEl.querySelector('input[type="checkbox"]') as HTMLInputElement
-        }, 0)
-      })
-  }
-
-  /**
-   * Select a tag
-   */
-  private selectTag(tag: string): void {
-    this.selectedTag = tag
-    this.updatePreview()
-    this.updateConfirmButton()
-  }
-
-  /**
-   * Update preview display
-   */
-  private updatePreview(): void {
-    this.previewEl.empty()
-
-    if (!this.selectedTag) {
-      const emptyPreviewEl = this.previewEl.createDiv('tagfolder-empty-preview')
-      emptyPreviewEl.textContent = 'Select a tag to see the organization preview'
-      return
-    }
-
-    const selectedMapping = this.tagMappings.find(m => m.tag === this.selectedTag)
-    if (!selectedMapping) return
-
-    // Organization details
-    const detailsEl = this.previewEl.createDiv('tagfolder-organization-details')
-
-    const fromToEl = detailsEl.createDiv('tagfolder-from-to')
-    fromToEl.createDiv('tagfolder-from').innerHTML = `
-      <span class="tagfolder-label">From:</span>
-      <span class="tagfolder-path">${this.currentNotePath || 'Current location'}</span>
-    `
-    fromToEl.createDiv('tagfolder-to').innerHTML = `
-      <span class="tagfolder-label">To:</span>
-      <span class="tagfolder-path">${selectedMapping.path}</span>
-    `
-
-    // Tag information
-    const tagInfoEl = detailsEl.createDiv('tagfolder-tag-info')
-    tagInfoEl.innerHTML = `
-      <div><strong>Tag:</strong> ${selectedMapping.tag}</div>
-      <div><strong>Mapping Type:</strong> ${selectedMapping.mappingType}</div>
-      <div><strong>Priority:</strong> ${selectedMapping.priority}</div>
-    `
-
-    // Validation status
-    if (!selectedMapping.valid) {
-      const validationEl = detailsEl.createDiv('tagfolder-validation-errors')
-      validationEl.innerHTML = '<strong>⚠️ Validation Issues:</strong>'
-      selectedMapping.errors.forEach(error => {
-        validationEl.createDiv('tagfolder-error').textContent = error
-      })
-    }
-
-    // Warnings
-    if (selectedMapping.warnings.length > 0) {
-      const warningsEl = detailsEl.createDiv('tagfolder-validation-warnings')
-      warningsEl.innerHTML = '<strong>⚠️ Warnings:</strong>'
-      selectedMapping.warnings.forEach(warning => {
-        warningsEl.createDiv('tagfolder-warning').textContent = warning
-      })
-    }
-
-    // Emit preview event
+    // Emit event for analytics
     eventEmitter.emit('tag-selection-changed', {
-      selectedTag: this.selectedTag,
-      targetPath: selectedMapping.path,
-      valid: selectedMapping.valid
+      selectedTag: result.selectedTag,
+      targetPath: result.targetPath,
+      valid: mapping.valid
+    })
+
+    this.onResolve(result)
+    this.close()
+  }
+
+  // Public method to get result promise
+  public getResult(): Promise<TagSelectionResult> {
+    return new Promise((resolve) => {
+      this.onResolve = resolve
     })
   }
 
-  /**
-   * Update confirm button state
-   */
-  private updateConfirmButton(): void {
-    const confirmButton = this.contentEl.querySelector('.tagfolder-dialog-confirm') as HTMLButtonElement
-    if (confirmButton) {
-      this.confirmButton = confirmButton
-
-      const selectedMapping = this.tagMappings.find(m => m.tag === this.selectedTag)
-      const isValid = selectedMapping?.valid !== false
-
-      confirmButton.disabled = !isValid
-
-      if (!isValid) {
-        confirmButton.textContent = 'Cannot Organize (Invalid Selection)'
-      } else {
-        confirmButton.textContent = 'Organize Note'
+  
+  private addReferenceStyles(): void {
+    // Add styles exactly from reference
+    const style = document.createElement('style')
+    style.textContent = `
+      .tag-selection-modal .suggestion-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin: 2px 0;
       }
-    }
-  }
 
-  protected override createFooter(): void {
-    super.createFooter()
-    this.updateConfirmButton()
+      .tag-selection-modal .suggestion-item:hover {
+        background-color: var(--background-modifier-hover);
+      }
+
+      .tag-selection-modal .tag-icon {
+        color: var(--text-accent);
+        font-weight: bold;
+        margin-right: 8px;
+        font-size: 14px;
+      }
+
+      .tag-selection-modal .tag-text {
+        font-weight: 500;
+        color: var(--text-normal);
+        margin-right: 8px;
+        flex: 1;
+      }
+
+      .tag-selection-modal .tag-preview {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-family: monospace;
+        opacity: 0.8;
+      }
+
+      .tag-selection-modal .prompt {
+        font-weight: 600;
+        color: var(--text-normal);
+      }
+
+      .tag-selection-modal .prompt-instructions {
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      .tag-selection-modal .tag-selection-info {
+        padding: 12px 16px;
+        background-color: var(--background-secondary);
+        border-bottom: 1px solid var(--background-modifier-border);
+        position: relative;
+      }
+
+      .tag-selection-modal .tag-selection-info::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 4px;
+        background-color: var(--text-accent);
+        border-radius: 50%;
+      }
+
+      .tag-selection-modal .tag-selection-info::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background-color: var(--interactive-accent);
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+      }
+
+      .tag-selection-modal .modal-close-button {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        border-radius: 4px;
+        color: var(--text-muted);
+        transition: all 0.2s ease;
+      }
+
+      .tag-selection-modal .modal-close-button:hover {
+        background-color: var(--background-modifier-hover);
+        color: var(--text-normal);
+      }
+
+      .tag-selection-modal .modal-close-button::before {
+        content: '×';
+        font-size: 18px;
+        line-height: 1;
+      }
+    `
+
+    // Add styles to modal
+    this.modalEl.appendChild(style)
   }
 }

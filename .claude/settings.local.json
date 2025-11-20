@@ -11,7 +11,8 @@
       "Bash(powershell.exe:*)",
       "Bash(npx tsc:*)",
       "Bash(timeout:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

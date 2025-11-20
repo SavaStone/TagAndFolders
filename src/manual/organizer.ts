@@ -11,13 +11,13 @@ import { PathMapper } from '@/scanning/path-mapper.js'
 import { FileMover, FileOperationOptions } from '@/file-ops/file-mover.js'
 import { LinkUpdater } from '@/file-ops/link-updater.js'
 import type { LinkUpdateConfig } from '@/types/entities.js'
-import { TagSelectionDialog, TagSelectionDialogOptions } from '@/ui/tag-selection-dialog.js'
+import { TagSelectionDialog, TagSelectionDialogOptions, TagSelectionResult } from '@/ui/tag-selection-dialog.js'
 import { ConflictDialog } from '@/ui/conflict-dialog.js'
 import { ProgressIndicator, ProgressManager } from '@/ui/progress.js'
 import { DialogFactory } from '@/ui/dialog.js'
 import { eventEmitter } from '@/utils/events.js'
 import { FileOperationError, CancellationError } from '@/utils/errors.js'
-import { joinPath, normalizePath } from '@/utils/path-utils.js'
+import { joinPath, normalizePath, getBaseName, toObsidianPath } from '@/utils/path-utils.js'
 
 /**
  * Convert LinkUpdaterSettings to LinkUpdateConfig
@@ -100,7 +100,7 @@ export class ManualOrganizer {
       createParents: this.settings.organizer.createParentDirectories,
       preserveTimestamps: this.settings.organizer.preserveTimestamps,
       createBackup: this.settings.organizer.safety.enableBackups
-    })
+    }, this.app)
     this.linkUpdater = new LinkUpdater({
       linkTypes: this.settings.linkUpdater.linkTypes,
       updateEmbeddedFiles: true,
@@ -178,7 +178,7 @@ export class ManualOrganizer {
           options
         )
 
-        if (!tagSelection.confirmed) {
+        if (!tagSelection) {
           return {
             success: false,
             sourcePath: currentFile.path,
@@ -196,7 +196,7 @@ export class ManualOrganizer {
         // Execute organization
         const result = await this.executeOrganization(
           currentFile.path,
-          tagSelection.data!,
+          tagSelection,
           options.showProgress
         )
 
@@ -288,7 +288,7 @@ export class ManualOrganizer {
       createParents: settings.organizer.createParentDirectories,
       preserveTimestamps: settings.organizer.preserveTimestamps,
       createBackup: settings.organizer.safety.enableBackups
-    })
+    }, this.app)
     this.linkUpdater = new LinkUpdater(convertToLinkUpdateConfig(settings.linkUpdater))
   }
 
@@ -316,18 +316,15 @@ export class ManualOrganizer {
     filePath: string,
     tagMappings: PathMappingResult[],
     options: ManualOrganizationOptions
-  ): Promise<{ confirmed: boolean; data?: any }> {
+  ): Promise<TagSelectionResult | null> {
     if (options.skipDialogs && tagMappings.length > 0) {
-      // Auto-select first mapping for testing
+      // Auto-select first mapping for testing - return TagSelectionResult directly
       return {
-        confirmed: true,
-        data: {
-          selectedTag: tagMappings[0]?.tag || '',
-          targetPath: tagMappings[0]?.path || '',
-          createFolder: true,
-          updateLinks: true,
-          createBackup: true
-        }
+        selectedTag: tagMappings[0]?.tag || '',
+        targetPath: tagMappings[0]?.path || '',
+        createFolder: true,
+        updateLinks: true,
+        createBackup: true
       }
     }
 
@@ -351,7 +348,7 @@ export class ManualOrganizer {
    */
   private async executeOrganization(
     sourcePath: string,
-    selection: any,
+    selection: TagSelectionResult,
     showProgress: boolean = true
   ): Promise<ManualOrganizationResult> {
     const startTime = Date.now()
@@ -417,7 +414,7 @@ export class ManualOrganizer {
       return {
         success: true,
         sourcePath,
-        targetPath,
+        targetPath: fileOperation.target,
         selectedTag: selection.selectedTag,
         operations: [fileOperation],
         linksUpdated,
@@ -453,8 +450,35 @@ export class ManualOrganizer {
     const normalizedPath = normalizePath(targetPath)
 
     if (createFolder) {
-      // In a real implementation, this would create the folder
-      console.log(`Would create folder: ${normalizedPath}`)
+      // Check if folder exists first
+      const folder = this.app.vault.getAbstractFileByPath(normalizedPath)
+      if (folder) {
+        console.log(`Folder already exists: ${normalizedPath}`)
+      } else {
+        // Create the folder if it doesn't exist
+        try {
+          await this.app.vault.createFolder(normalizedPath)
+          console.log(`Created folder: ${normalizedPath}`)
+        } catch (error) {
+          console.warn(`Failed to create folder ${normalizedPath}:`, error)
+          // Try to create parent folders if needed
+          try {
+            const parentPath = normalizedPath.split('/').slice(0, -1).join('/')
+            if (parentPath && parentPath !== normalizedPath) {
+              const parentFolder = this.app.vault.getAbstractFileByPath(parentPath)
+              if (!parentFolder) {
+                await this.app.vault.createFolder(parentPath)
+                console.log(`Created parent folder: ${parentPath}`)
+                // Try again to create the target folder
+                await this.app.vault.createFolder(normalizedPath)
+                console.log(`Created folder after parent creation: ${normalizedPath}`)
+              }
+            }
+          } catch (parentError) {
+            console.warn(`Failed to create parent folders for ${normalizedPath}:`, parentError)
+          }
+        }
+      }
     }
 
     return normalizedPath
@@ -464,11 +488,30 @@ export class ManualOrganizer {
    * Create file operation
    */
   private async createFileOperation(sourcePath: string, targetPath: string): Promise<FileOperation> {
+    // Extract filename from source path using proper path utilities
+    const fileName = getBaseName(sourcePath)
+    const fullTargetPath = joinPath(targetPath, fileName)
+
+    // Ensure paths are in Obsidian format for the FileOperation
+    const obsidianSource = toObsidianPath(sourcePath)
+    const obsidianTarget = toObsidianPath(fullTargetPath)
+
+    console.log(`Creating file operation:`, {
+      sourcePath,
+      targetPath,
+      fileName,
+      fullTargetPath,
+      obsidianSource,
+      obsidianTarget,
+      originalSourceFormat: sourcePath,
+      originalTargetFormat: fullTargetPath
+    })
+
     return {
       id: `move_${Date.now()}`,
       type: 'move',
-      source: sourcePath,
-      target: targetPath,
+      source: obsidianSource,
+      target: obsidianTarget,
       status: 'pending',
       createdAt: new Date(),
       associatedTags: []
@@ -518,7 +561,30 @@ export class ManualOrganizer {
     }
 
     try {
-      // In a real implementation, this would detect the actual conflict
+      // Check if this is a real conflict with actual file operation data
+      if (!error.filePath || error.filePath === 'unknown') {
+        console.warn('Cannot resolve conflict: missing file path information')
+        return false
+      }
+
+      // Try to detect actual conflict using the file mover
+      const conflict = await this.fileMover.detectConflict({
+        id: 'conflict-check',
+        type: 'move',
+        source: error.filePath,
+        target: error.filePath, // This is just for conflict detection
+        status: 'pending',
+        createdAt: new Date(),
+        associatedTags: []
+      })
+
+      if (!conflict) {
+        // No actual conflict detected, don't show dialog
+        console.log('No real conflict detected, skipping conflict dialog')
+        return false
+      }
+
+      // Create proper conflict info
       const conflictInfo = {
         operation: {
           id: 'conflict-op-' + Date.now(),
@@ -529,15 +595,15 @@ export class ManualOrganizer {
           createdAt: new Date(),
           associatedTags: []
         },
-        type: 'target-exists' as const,
+        type: conflict.type as 'target-exists' | 'target-read-only' | 'permission-denied' | 'path-too-long',
         existingFile: {
           path: error.filePath,
-          size: 1024,
+          size: 1024, // Would get actual size in real implementation
           modifiedAt: new Date()
         },
         newFile: {
           path: error.filePath,
-          size: 1024,
+          size: 1024, // Would get actual size in real implementation
           modifiedAt: new Date()
         }
       }

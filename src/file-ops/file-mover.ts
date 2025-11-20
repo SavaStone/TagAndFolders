@@ -2,9 +2,10 @@
  * File Mover - Handles safe file operations with backup and rollback capabilities
  */
 
+import { App, TFile } from 'obsidian'
 import type { FileOperation, ConflictResolution, OperationResult } from '@/types/entities.js'
 import { validateFilePath } from '@/utils/validation.js'
-import { normalizePath, joinPath, getDirName, getBaseName, sanitizeFileName } from '@/utils/path-utils.js'
+import { normalizePath, joinPath, getDirName, getBaseName, sanitizeFileName, toObsidianPath, toFilesystemPath } from '@/utils/path-utils.js'
 import {
   FileOperationError,
   FileNotFoundError,
@@ -92,7 +93,8 @@ export class FileMover {
       createParents: true,
       preserveTimestamps: true,
       createBackup: true
-    }
+    },
+    private app?: App
   ) {}
 
   /**
@@ -362,26 +364,79 @@ export class FileMover {
     options: FileOperationOptions,
     signal: AbortSignal
   ): Promise<FileOperationResult> {
-    // In a real implementation, this would use Obsidian's file API
-    // For now, we'll simulate the operation
-
     // Check if operation was cancelled
     if (signal.aborted) {
       throw new CancellationError('move-file')
     }
 
-    // Simulate file move
-    const fileSize = await this.getFileSize(operation.source)
+    if (!this.app) {
+      throw new FileOperationError(
+        operation.type,
+        operation.source,
+        'App instance not available for file operations',
+        'high',
+        false
+      )
+    }
 
-    return {
-      id: operation.id,
-      operationType: 'move',
-      source: operation.source,
-      target: operation.target,
-      success: true,
-      message: `File moved from ${operation.source} to ${operation.target}`,
-      timestamp: new Date(),
-      fileSize
+    try {
+      // Ensure paths are converted to Obsidian API format (always forward slashes)
+      const obsidianSource = toObsidianPath(operation.source)
+      const obsidianTarget = toObsidianPath(operation.target)
+
+      console.log(`Starting file move operation:`, {
+        source: obsidianSource,
+        target: obsidianTarget,
+        originalSource: operation.source,
+        originalTarget: operation.target,
+        platformSource: normalizePath(operation.source),
+        platformTarget: normalizePath(operation.target)
+      })
+
+      // Get source file using Obsidian-compatible path
+      const sourceFile = this.app.vault.getAbstractFileByPath(obsidianSource)
+      if (!(sourceFile instanceof TFile)) {
+        throw new FileNotFoundError(obsidianSource)
+      }
+
+      console.log(`Found source file:`, {
+        name: sourceFile.name,
+        path: sourceFile.path,
+        size: sourceFile.stat.size
+      })
+
+      // Get file size
+      const fileSize = sourceFile.stat.size
+
+      // Perform the actual file move using Obsidian's API with Obsidian-compatible paths
+      console.log(`Moving file to:`, obsidianTarget)
+      await this.app.fileManager.renameFile(sourceFile, obsidianTarget)
+
+      console.log(`File move completed successfully`)
+
+      return {
+        id: operation.id,
+        operationType: 'move',
+        source: obsidianSource,
+        target: obsidianTarget,
+        success: true,
+        message: `File moved from ${obsidianSource} to ${obsidianTarget}`,
+        timestamp: new Date(),
+        fileSize
+      }
+
+    } catch (error) {
+      if (error instanceof FileOperationError) {
+        throw error
+      }
+
+      throw new FileOperationError(
+        operation.type,
+        operation.source,
+        error instanceof Error ? error.message : 'Unknown error during file move',
+        'high',
+        false
+      )
     }
   }
 
@@ -467,12 +522,20 @@ export class FileMover {
     operation: FileOperation,
     options: FileOperationOptions
   ): Promise<void> {
+    // Normalize paths for validation and API calls
+    const normalizedSource = operation.source ? normalizePath(operation.source) : ''
+    const normalizedTarget = normalizePath(operation.target)
+
+    // Update operation with normalized paths for API calls
+    operation.source = normalizedSource
+    operation.target = normalizedTarget
+
     // Validate source path if provided
-    if (operation.source && operation.type !== 'create-folder') {
-      const sourceValidation = validateFilePath(operation.source, { mustExist: true })
+    if (normalizedSource && operation.type !== 'create-folder') {
+      const sourceValidation = validateFilePath(normalizedSource, { mustExist: true })
       if (!sourceValidation.valid) {
         throw new FileNotFoundError(
-          operation.source,
+          normalizedSource,
           operation.type,
           new Error(sourceValidation.errors.join(', '))
         )
@@ -480,15 +543,15 @@ export class FileMover {
     }
 
     // Validate target path
-    const targetValidation = validateFilePath(operation.target, { allowRelative: true })
+    const targetValidation = validateFilePath(normalizedTarget, { allowRelative: true })
     if (!targetValidation.valid) {
       throw new FileOperationError(
         operation.type,
-        operation.source,
+        normalizedSource,
         `Invalid target path: ${targetValidation.errors.join(', ')}`,
         'high',
         false,
-        { targetPath: operation.target }
+        { targetPath: normalizedTarget }
       )
     }
 
@@ -501,13 +564,52 @@ export class FileMover {
   /**
    * Detect file conflicts
    */
-  private async detectConflict(operation: FileOperation): Promise<{
+  async detectConflict(operation: FileOperation): Promise<{
     type: 'exists' | 'read-only' | 'directory'
     details?: { message: string }
   } | null> {
-    // In a real implementation, this would check the file system
-    // For now, we'll return null (no conflicts)
-    return null
+    if (!this.app) {
+      return null
+    }
+
+    try {
+      // Check if target file already exists
+      const targetFile = this.app.vault.getAbstractFileByPath(operation.target)
+
+      if (targetFile) {
+        if (targetFile instanceof TFile) {
+          // Target file exists - this is a conflict
+          return {
+            type: 'exists',
+            details: { message: `File "${operation.target}" already exists` }
+          }
+        } else {
+          // Target is a directory
+          return {
+            type: 'directory',
+            details: { message: `Target "${operation.target}" is a directory` }
+          }
+        }
+      }
+
+      // Check if parent directory exists
+      const targetPath = operation.target
+      const parentPath = targetPath.substring(0, targetPath.lastIndexOf('/'))
+      if (parentPath) {
+        const parentDir = this.app.vault.getAbstractFileByPath(parentPath)
+        if (!parentDir) {
+          // Parent directory doesn't exist - not a conflict, will be created
+          return null
+        }
+      }
+
+      // No conflicts detected
+      return null
+
+    } catch (error) {
+      console.warn('Error detecting conflicts:', error)
+      return null
+    }
   }
 
   /**
@@ -560,10 +662,22 @@ export class FileMover {
   }
 
   /**
-   * Get file size (mock implementation)
+   * Get file size
    */
   private async getFileSize(filePath: string): Promise<number> {
-    // In a real implementation, this would use Obsidian's file API
-    return 1024 // Mock size
+    if (!this.app) {
+      return 1024 // Fallback size
+    }
+
+    try {
+      const file = this.app.vault.getAbstractFileByPath(filePath)
+      if (file instanceof TFile) {
+        return file.stat.size
+      }
+      return 1024 // Fallback size
+    } catch (error) {
+      console.warn(`Failed to get file size for ${filePath}:`, error)
+      return 1024 // Fallback size
+    }
   }
 }

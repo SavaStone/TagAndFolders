@@ -3,7 +3,7 @@
  */
 
 import type { TagPathMapping } from '@/types/entities.js'
-import { tagToPathSegment, normalizePath, joinPath } from '@/utils/path-utils.js'
+import { tagToPathSegment, tagToPathSegmentPreserveSlashes, tagToDirectoryPathPreserveSlashes, normalizePath, joinPath } from '@/utils/path-utils.js'
 import { validateTagMapping, validateFilePath } from '@/utils/validation.js'
 import { ConfigurationError } from '@/utils/errors.js'
 import { TagValidator } from '@/utils/validators.js'
@@ -402,14 +402,15 @@ export class PathMapper {
    * Build target path from mapping
    */
   private buildTargetPath(mappingPath: string): string {
-    // Convert tag to path segment
-    const pathSegment = tagToPathSegment(mappingPath)
+    // Convert tag to path segment preserving slashes for directory structure
+    const pathSegment = tagToPathSegmentPreserveSlashes(mappingPath)
 
     // Join with base path if provided
     if (this.basePath) {
-      return normalizePath(joinPath(this.basePath, pathSegment))
+      return tagToDirectoryPathPreserveSlashes(pathSegment, this.basePath)
     }
 
+    // Always normalize to platform-specific paths at the final step
     return normalizePath(pathSegment)
   }
 
