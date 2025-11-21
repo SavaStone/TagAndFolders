@@ -423,22 +423,26 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   /**
-   * Create custom name container with proper structure - NO NESTED CONTAINERS
+   * Create custom name container with proper structure - HEADER OUTSIDE CONTAINER
    */
   private createCustomNameContainer(containerEl: HTMLElement): void {
+    // Header outside container - only show when rename is selected
+    const headerEl = containerEl.createEl('h4', { text: 'New file name' })
+    headerEl.className = 'tagfolder-custom-name-header'
+    headerEl.style.display = this.selectedStrategy === 'rename' ? 'block' : 'none'
+    headerEl.style.marginBottom = '20px'
+
+    // Container only for description and input
     const customNameContainer = containerEl.createDiv('tagfolder-custom-name-container')
     customNameContainer.className = 'tagfolder-custom-name-container'
     customNameContainer.style.display = this.selectedStrategy === 'rename' ? 'block' : 'none'
 
-    // Direct label without wrapper
-    const nameLabel = customNameContainer.createEl('div', { text: 'New file name' })
-    nameLabel.className = 'tagfolder-setting-name'
-
-    // Direct description without wrapper
+    // Description with larger font size
     const descLabel = customNameContainer.createEl('div', { text: 'Enter a new name for the file (extension will be preserved)' })
     descLabel.className = 'tagfolder-setting-description'
+    descLabel.style.fontSize = '14px' // Make it more readable
 
-    // Direct input without wrapper
+    // Input field
     const textInput = customNameContainer.createEl('input', { type: 'text' })
     textInput.className = 'tagfolder-text-input'
 
@@ -455,20 +459,18 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   /**
-   * Create resolution preview section - Updated structure
+   * Create resolution preview section - Fixed structure (no box-in-box)
    */
   private createResolutionPreview(containerEl: HTMLElement): void {
-    // Add header outside container
+    // Custom file name for rename strategy - as sibling to preview card
+    this.createCustomNameContainer(containerEl)
+
+    // Add header before preview card
     const headerEl = containerEl.createEl('h4', { text: 'Resolution Preview' })
     headerEl.className = 'tagfolder-resolution-header'
 
-    // Create content container with unified styling
-    const previewSection = containerEl.createDiv('tagfolder-resolution-preview')
-
-    // Custom file name for rename strategy - moved inside preview container
-    this.createCustomNameContainer(previewSection)
-
-    const previewEl = previewSection.createDiv('tagfolder-preview-content')
+    // Create the preview card DIRECTLY - no wrapper with borders/padding
+    const previewEl = containerEl.createDiv('tagfolder-preview-content')
 
     this.updateResolutionPreview()
   }
@@ -483,22 +485,18 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   /**
-   * Update resolution preview - UPDATED WITH REFERENCE DESIGN
+   * Update resolution preview - UPDATED WITH FIXED STRUCTURE
    */
   private updateResolutionPreview(): void {
-    const previewSection = this.contentEl.querySelector('.tagfolder-resolution-preview')
-    if (!previewSection) return
+    const existingContent = this.contentEl.querySelector('.tagfolder-preview-content')
+    if (!existingContent) return
 
-    const existingContent = previewSection.querySelector('.tagfolder-preview-content')
-    if (existingContent) {
-      existingContent.remove()
-    }
-
-    const previewContent = previewSection.createDiv('tagfolder-preview-content')
+    // Clear existing content
+    existingContent.empty()
 
     switch (this.selectedStrategy) {
       case 'skip':
-        previewContent.innerHTML = `
+        existingContent.innerHTML = `
           <div style="display: flex; align-items: flex-start; gap: 12px;">
             <span style="font-size: 20px; flex-shrink: 0;">⏭️</span>
             <div>
@@ -513,7 +511,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
       case 'rename':
         const newName = this.newFileName || 'renamed-file.md'
-        previewContent.innerHTML = `
+        existingContent.innerHTML = `
           <div style="display: flex; align-items: flex-start; gap: 12px;">
             <span style="font-size: 20px; flex-shrink: 0;">✏️</span>
             <div>
@@ -528,7 +526,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
         break
 
       case 'replace':
-        previewContent.innerHTML = `
+        existingContent.innerHTML = `
           <div style="display: flex; align-items: flex-start; gap: 12px;">
             <span style="font-size: 20px; flex-shrink: 0;">🔄</span>
             <div>
@@ -543,7 +541,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
       
       default:
-        previewContent.innerHTML = `
+        existingContent.innerHTML = `
           <div style="display: flex; align-items: flex-start; gap: 12px;">
             <span style="font-size: 20px; flex-shrink: 0;">❓</span>
             <div>
@@ -556,10 +554,13 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
         `
     }
 
-    // Show/hide custom name field
+    // Show/hide custom name field and header
     const customNameContainer = this.contentEl.querySelector('.tagfolder-custom-name-container') as HTMLElement
-    if (customNameContainer) {
-      customNameContainer.style.display = this.selectedStrategy === 'rename' ? 'block' : 'none'
+    const customNameHeader = this.contentEl.querySelector('.tagfolder-custom-name-header') as HTMLElement
+    if (customNameContainer && customNameHeader) {
+      const shouldShow = this.selectedStrategy === 'rename'
+      customNameContainer.style.display = shouldShow ? 'block' : 'none'
+      customNameHeader.style.display = shouldShow ? 'block' : 'none'
     }
   }
 
