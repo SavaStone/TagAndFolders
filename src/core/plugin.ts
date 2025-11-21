@@ -3,7 +3,7 @@
  */
 
 import { App, Plugin, Notice, WorkspaceLeaf, TFile, Modal } from 'obsidian'
-import type { PluginSettings } from '@/types/settings.js'
+import type { PluginConfig } from '@/types/settings.js'
 import { ManualOrganizer } from '@/manual/organizer.js'
 import { eventEmitter } from '@/utils/events.js'
 import { errorHandler } from '@/utils/errors.js'
@@ -45,7 +45,7 @@ export class TagFolderPlugin {
 
   constructor(
     private app: App,
-    private settings: PluginSettings
+    private config: PluginConfig
   ) {}
 
   /**
@@ -57,7 +57,7 @@ export class TagFolderPlugin {
       this.setupEventListeners()
 
       // Initialize manual organizer
-      this.manualOrganizer = new ManualOrganizer(this.app, this.settings)
+      this.manualOrganizer = new ManualOrganizer(this.app, this.config)
 
       // Register commands
       this.registerCommands()
@@ -100,26 +100,26 @@ export class TagFolderPlugin {
   }
 
   /**
-   * Update plugin settings
+   * Update plugin configuration (not supported in first version)
    */
-  async onSettingsChanged(newSettings: PluginSettings): Promise<void> {
+  async onConfigChanged(newConfig: PluginConfig): Promise<void> {
     try {
-      this.settings = newSettings
+      this.config = newConfig
 
-      // Update manual organizer settings
+      // Update manual organizer configuration
       if (this.manualOrganizer) {
-        this.manualOrganizer.updateSettings(newSettings)
+        this.manualOrganizer.updateConfig(newConfig)
       }
 
-      // Emit settings changed event
+      // Emit configuration changed event
       eventEmitter.emit('settings-changed', {
-        key: 'plugin-settings',
-        oldValue: this.settings,
-        newValue: newSettings
+        key: 'plugin-config',
+        oldValue: this.config,
+        newValue: newConfig
       })
 
     } catch (error) {
-      console.error('Failed to update plugin settings:', error)
+      console.error('Failed to update plugin configuration:', error)
       throw error
     }
   }

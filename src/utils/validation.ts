@@ -3,7 +3,7 @@
  */
 
 import type { TagPathMapping, FileOperation } from '@/types/entities.js'
-import type { PluginSettings } from '@/types/settings.js'
+import type { PluginConfig } from '@/types/settings.js'
 
 /**
  * Validation result interface
@@ -222,53 +222,23 @@ export function validateFileOperation(operation: FileOperation): ValidationResul
 }
 
 /**
- * Validate plugin settings
+ * Validate plugin configuration
  */
-export function validatePluginSettings(settings: PluginSettings): ValidationResult {
+export function validatePluginConfig(config: PluginConfig): ValidationResult {
   const errors: ValidationError[] = []
   const warnings: ValidationWarning[] = []
 
-  // Validate version
-  if (!settings.version || typeof settings.version !== 'string') {
-    errors.push({
-      type: 'required',
-      message: 'Version is required and must be a string',
-      path: 'version',
-      value: settings.version
-    })
-  }
-
-  // Validate general settings
-  if (!settings.general) {
-    errors.push({
-      type: 'required',
-      message: 'General settings are required',
-      path: 'general'
-    })
-  } else {
-    // Validate log level
-    const validLogLevels = ['error', 'warn', 'info', 'debug']
-    if (!validLogLevels.includes(settings.general.logLevel)) {
-      errors.push({
-        type: 'range',
-        message: `Log level must be one of: ${validLogLevels.join(', ')}`,
-        path: 'general.logLevel',
-        value: settings.general.logLevel
-      })
-    }
-  }
-
   // Validate tag mappings array
-  if (!Array.isArray(settings.tagMappings)) {
+  if (!Array.isArray(config.tagMappings)) {
     errors.push({
       type: 'format',
       message: 'Tag mappings must be an array',
       path: 'tagMappings',
-      value: settings.tagMappings
+      value: config.tagMappings
     })
   } else {
     // Validate each tag mapping
-    settings.tagMappings.forEach((mapping, index) => {
+    config.tagMappings.forEach((mapping, index) => {
       const mappingResult = validateTagMapping(mapping)
       if (!mappingResult.valid) {
         mappingResult.errors.forEach(error => {
@@ -282,7 +252,7 @@ export function validatePluginSettings(settings: PluginSettings): ValidationResu
   }
 
   // Check for duplicate tags in mappings
-  const tags = settings.tagMappings.map(m => m.tag).filter(Boolean)
+  const tags = config.tagMappings.map(m => m.tag).filter(Boolean)
   const duplicateTags = tags.filter((tag, index) => tags.indexOf(tag) !== index)
   if (duplicateTags.length > 0) {
     warnings.push({

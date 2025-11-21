@@ -3,7 +3,7 @@
  */
 
 import type { TagPathMapping, FileOperation } from '@/types/entities.js'
-import type { PluginSettings } from '@/types/settings.js'
+import type { PluginConfig } from '@/types/settings.js'
 import { validateTag, validateFilePath } from './validation.js'
 
 /**
@@ -345,9 +345,9 @@ export class PathValidator {
  */
 export class ConfigurationValidator {
   /**
-   * Validate plugin settings comprehensively
+   * Validate plugin configuration comprehensively
    */
-  static validateSettings(settings: PluginSettings): {
+  static validateConfig(config: PluginConfig): {
     valid: boolean
     errors: string[]
     warnings: string[]
@@ -357,18 +357,13 @@ export class ConfigurationValidator {
     const warnings: string[] = []
     const criticalIssues: string[] = []
 
-    // Validate version
-    if (!settings.version) {
-      criticalIssues.push('Settings version is missing')
-    }
-
     // Validate tag mappings
-    if (!Array.isArray(settings.tagMappings)) {
+    if (!Array.isArray(config.tagMappings)) {
       errors.push('Tag mappings must be an array')
     } else {
       const tagNames = new Set<string>()
 
-      settings.tagMappings.forEach((mapping, index) => {
+      config.tagMappings.forEach((mapping, index) => {
         // Validate tag
         const tagValidation = TagValidator.validateTag(mapping.tag)
         if (!tagValidation.valid) {
@@ -395,31 +390,8 @@ export class ConfigurationValidator {
       })
 
       // Check for potential conflicts in tag mappings
-      const conflicts = this.findTagMappingConflicts(settings.tagMappings)
+      const conflicts = this.findTagMappingConflicts(config.tagMappings)
       warnings.push(...conflicts)
-    }
-
-    // Validate general settings
-    if (settings.general) {
-      const validLogLevels = ['error', 'warn', 'info', 'debug']
-      if (!validLogLevels.includes(settings.general.logLevel)) {
-        errors.push(`Invalid log level: ${settings.general.logLevel}`)
-      }
-    }
-
-    // Validate scanner settings
-    if (settings.scanner) {
-      if (settings.scanner.maxFileSize < 0) {
-        errors.push('Scanner max file size must be non-negative')
-      }
-
-      if (settings.scanner.minFileSize < 0) {
-        errors.push('Scanner min file size must be non-negative')
-      }
-
-      if (settings.scanner.minFileSize > settings.scanner.maxFileSize) {
-        errors.push('Scanner min file size cannot be greater than max file size')
-      }
     }
 
     return {

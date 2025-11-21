@@ -4,7 +4,7 @@
 
 import { App, TFile, Notice } from 'obsidian'
 import type { FileOperation } from '@/types/entities.js'
-import type { PluginSettings } from '@/types/settings.js'
+import type { PluginConfig } from '@/types/settings.js'
 import type { PathMappingResult } from '@/scanning/path-mapper.js'
 import { TagScanner } from '@/scanning/tag-scanner.js'
 import { PathMapper } from '@/scanning/path-mapper.js'
@@ -20,17 +20,17 @@ import { FileOperationError, CancellationError } from '@/utils/errors.js'
 import { joinPath, normalizePath, getBaseName, toObsidianPath, arePathsEqual } from '@/utils/path-utils.js'
 
 /**
- * Convert LinkUpdaterSettings to LinkUpdateConfig
+ * Create hardcoded link update configuration
  */
-function convertToLinkUpdateConfig(settings: PluginSettings['linkUpdater']): LinkUpdateConfig {
+function createLinkUpdateConfig(): LinkUpdateConfig {
   return {
-    linkTypes: settings.linkTypes,
-    updateEmbeddedFiles: settings.updateSettings.updateEmbeddedFiles,
-    updateAliases: settings.updateSettings.updateAliases,
-    normalizePaths: settings.updateSettings.normalizePaths,
-    preserveWhitespace: settings.updateSettings.preserveWhitespace,
-    createBackups: settings.updateSettings.createBackups,
-    conflictResolution: 'skip' // Default strategy
+    linkTypes: ['wiki-link', 'wiki-link-alias', 'wiki-link-heading', 'wiki-link-block', 'markdown-link'],
+    updateEmbeddedFiles: true,
+    updateAliases: true,
+    normalizePaths: true,
+    preserveWhitespace: true,
+    createBackups: false,
+    conflictResolution: 'prompt'
   }
 }
 
@@ -89,27 +89,19 @@ export class ManualOrganizer {
 
   constructor(
     private app: App,
-    private settings: PluginSettings,
+    private config: PluginConfig,
     private progressContainer?: HTMLElement
   ) {
-    // Initialize components
-    this.tagScanner = new TagScanner(this.app, this.settings.scanner.tagExtraction)
+    // Initialize components with hardcoded configuration
+    this.tagScanner = new TagScanner(this.app, this.config.tagExtraction)
     this.pathMapper = new PathMapper()
     this.fileMover = new FileMover({
-      timeout: this.settings.organizer.operationTimeout,
-      createParents: this.settings.organizer.createParentDirectories,
-      preserveTimestamps: this.settings.organizer.preserveTimestamps,
-      createBackup: this.settings.organizer.safety.enableBackups
+      timeout: this.config.fileOperations.operationTimeout,
+      createParents: this.config.fileOperations.createParentDirectories,
+      preserveTimestamps: this.config.fileOperations.preserveTimestamps,
+      createBackup: false // No backups in first version
     }, this.app)
-    this.linkUpdater = new LinkUpdater({
-      linkTypes: this.settings.linkUpdater.linkTypes,
-      updateEmbeddedFiles: true,
-      updateAliases: true,
-      normalizePaths: true,
-      preserveWhitespace: true,
-      createBackups: false,
-      conflictResolution: 'prompt'
-    })
+    this.linkUpdater = new LinkUpdater(createLinkUpdateConfig())
     this.dialogFactory = new DialogFactory(app)
 
     // Initialize progress manager
@@ -118,7 +110,7 @@ export class ManualOrganizer {
     }
 
     // Load tag mappings
-    this.pathMapper.updateTagMappings(this.settings.tagMappings)
+    this.pathMapper.updateTagMappings(this.config.tagMappings)
   }
 
   /**
@@ -312,21 +304,21 @@ export class ManualOrganizer {
   }
 
   /**
-   * Update settings
+   * Update configuration
    */
-  updateSettings(settings: PluginSettings): void {
-    this.settings = settings
+  updateConfig(config: PluginConfig): void {
+    this.config = config
 
     // Update component configurations
-    this.pathMapper.updateTagMappings(settings.tagMappings)
-    this.tagScanner = new TagScanner(this.app, settings.scanner.tagExtraction)
+    this.pathMapper.updateTagMappings(config.tagMappings)
+    this.tagScanner = new TagScanner(this.app, config.tagExtraction)
     this.fileMover = new FileMover({
-      timeout: settings.organizer.operationTimeout,
-      createParents: settings.organizer.createParentDirectories,
-      preserveTimestamps: settings.organizer.preserveTimestamps,
-      createBackup: settings.organizer.safety.enableBackups
+      timeout: config.fileOperations.operationTimeout,
+      createParents: config.fileOperations.createParentDirectories,
+      preserveTimestamps: config.fileOperations.preserveTimestamps,
+      createBackup: false // No backups in first version
     }, this.app)
-    this.linkUpdater = new LinkUpdater(convertToLinkUpdateConfig(settings.linkUpdater))
+    this.linkUpdater = new LinkUpdater(createLinkUpdateConfig())
   }
 
   /**
@@ -698,8 +690,8 @@ export class ManualOrganizer {
 
     const options: FileOperationOptions = {
       createBackup,
-      createParents: this.settings.organizer.createParentDirectories,
-      preserveTimestamps: this.settings.organizer.preserveTimestamps
+      createParents: this.config.fileOperations.createParentDirectories,
+      preserveTimestamps: this.config.fileOperations.preserveTimestamps
     }
 
     return await this.fileMover.executeOperation(operation, options)
@@ -709,18 +701,8 @@ export class ManualOrganizer {
    * Update links after file move
    */
   private async updateLinksAfterMove(operations: FileOperation[]): Promise<any> {
-    if (!this.settings.linkUpdater.updateSettings.createBackups) {
-      // Only update links that the user has enabled
-      return await this.linkUpdater.updateLinks(operations, {
-        linkTypes: this.settings.linkUpdater.linkTypes,
-        createBackup: this.settings.linkUpdater.updateSettings.createBackups
-      })
-    }
-
-    return {
-      linksUpdated: 0,
-      filesModified: 0
-    }
+    // Update links with hardcoded configuration
+    return await this.linkUpdater.updateLinks(operations, createLinkUpdateConfig())
   }
 
   /**

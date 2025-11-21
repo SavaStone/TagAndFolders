@@ -94,9 +94,6 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
     // Preview
     this.createResolutionPreview(container)
-
-    // Note about default behavior settings - moved to the very bottom
-    this.createSettingsNote(container)
   }
 
   protected async onConfirm(): Promise<ConflictResolutionResult> {
@@ -475,15 +472,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     this.updateResolutionPreview()
   }
 
-  /**
-   * Create settings note section - moved to bottom
-   */
-  private createSettingsNote(containerEl: HTMLElement): void {
-    const noteEl = containerEl.createDiv('tagfolder-settings-note')
-    noteEl.style.marginTop = '32px'
-    noteEl.textContent = 'Note: You can set default conflict resolution behavior in plugin settings.'
-  }
-
+  
   /**
    * Update resolution preview - UPDATED WITH FIXED STRUCTURE
    */

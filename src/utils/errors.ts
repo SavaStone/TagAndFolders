@@ -231,7 +231,7 @@ export class ConfigurationError extends TagFolderError {
   }
 
   override getUserMessage(): string {
-    return `Configuration error: ${this.message}. Please check your plugin settings.`
+    return `Configuration error: ${this.message}.`
   }
 }
 
