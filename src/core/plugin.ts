@@ -146,9 +146,7 @@ export class TagFolderPlugin {
         return
       }
 
-      // Show organization in progress
-      new Notice('Starting manual organization...')
-
+  
       const result = await this.manualOrganizer.organizeCurrentNote()
 
       if (result.success) {
@@ -157,8 +155,7 @@ export class TagFolderPlugin {
         this.state.stats.filesOrganized++
         this.state.stats.lastOperationTime = new Date()
 
-        new Notice(`Successfully organized "${activeFile.basename}"`)
-
+  
         // Open the newly organized file
         await this.openFile(result.targetPath)
 

@@ -214,11 +214,7 @@ export class ManualOrganizer {
             options.showProgress
           )
 
-          // Show success notification
-          if (result.success) {
-            new Notice(`Successfully organized "${currentFile.basename}" to ${result.targetPath}`)
-          }
-
+  
           return result
         } catch (error) {
           console.error('Organization failed:', error)
@@ -448,10 +444,14 @@ export class ManualOrganizer {
         ? `File is already in the correct location for tag "${selection.selectedTag}"`
         : `Successfully organized "${selection.selectedTag}"`
 
-      // Show appropriate notification for no-op operations
+      // Show appropriate notification
       if (isNoOp) {
         // For no-op, we show a subtle info notice instead of the regular success notice
-        new Notice(`ℹ️ ${resultMessage}`, 4000)
+        new Notice(`${resultMessage}`, 4000)
+      } else {
+        // For actual file moves, show success notification
+        const fileName = sourcePath.split('/').pop() || sourcePath
+        new Notice(`Successfully organized "${fileName}" to ${fileOperation.target}`)
       }
 
       // Emit organization completed event
