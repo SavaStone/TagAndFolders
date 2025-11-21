@@ -57,6 +57,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   private conflict: ConflictInfo
   private selectedStrategy: ConflictResolution['strategy'] = 'prompt'
   private newFileName: string = ''
+  private fileExtension: string = ''
   private strategyRadios: HTMLInputElement[] = []
 
   constructor(app: App, conflict: ConflictInfo) {
@@ -107,8 +108,12 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     }
 
     if (this.selectedStrategy === 'rename' && this.newFileName.trim()) {
-      result.customAction = this.newFileName
-      result.newFileName = this.newFileName
+      // Combine filename with extension for the final result
+      const fileName = this.newFileName.trim()
+      const fullFileName = this.fileExtension ? `${fileName}.${this.fileExtension}` : fileName
+
+      result.customAction = fullFileName
+      result.newFileName = fullFileName
     }
 
     return result
@@ -439,18 +444,48 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     descLabel.className = 'tagfolder-setting-description'
     descLabel.style.fontSize = '14px' // Make it more readable
 
-    // Input field
-    const textInput = customNameContainer.createEl('input', { type: 'text' })
-    textInput.className = 'tagfolder-text-input'
+    // File input container with extension display
+    const fileInputContainer = customNameContainer.createDiv('tagfolder-file-input-container')
+    fileInputContainer.style.display = 'flex'
+    fileInputContainer.style.alignItems = 'center'
+    fileInputContainer.style.gap = '4px'
 
+    // Initialize values first
     const targetFile = this.conflict.newFile.path
-    const extension = targetFile.split('.').pop() || ''
-    const baseName = targetFile.split('/').pop()?.replace(`.${extension}`, '') || ''
-    const uniqueName = generateUniqueFileName('', baseName, extension)
+    this.fileExtension = targetFile.split('.').pop() || ''
+    const baseName = targetFile.split('/').pop()?.replace(`.${this.fileExtension}`, '') || ''
+    const uniqueName = generateUniqueFileName('', baseName, this.fileExtension)
 
-    textInput.value = uniqueName
+    // Input field for filename without extension
+    const textInput = fileInputContainer.createEl('input', { type: 'text' })
+    textInput.className = 'tagfolder-text-input'
+    textInput.style.flex = '1'
+    textInput.placeholder = 'Enter new file name'
+
+    // Extension display (static text) - only show if extension exists
+    if (this.fileExtension) {
+      const extensionDisplay = fileInputContainer.createEl('span')
+      extensionDisplay.className = 'tagfolder-extension-display'
+      extensionDisplay.style.color = 'var(--text-muted)'
+      extensionDisplay.style.fontWeight = 'var(--font-semibold)'
+      extensionDisplay.style.userSelect = 'none'
+      extensionDisplay.textContent = `.${this.fileExtension}`
+    }
+
+    // Remove extension from the displayed name
+    const displayName = uniqueName.replace(`.${this.fileExtension}`, '')
+    textInput.value = displayName
+
     textInput.addEventListener('input', () => {
-      this.newFileName = textInput.value
+      // Remove extension if user accidentally typed it
+      let cleanValue = textInput.value
+      if (this.fileExtension && cleanValue.endsWith(`.${this.fileExtension}`)) {
+        cleanValue = cleanValue.slice(0, -(`.${this.fileExtension}`).length)
+        // Update the input field value if we removed the extension
+        textInput.value = cleanValue
+      }
+
+      this.newFileName = cleanValue
       this.updateResolutionPreview()
     })
   }
@@ -499,7 +534,9 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
         break
 
       case 'rename':
-        const newName = this.newFileName || 'renamed-file.md'
+        // Combine filename with extension for display
+        const fileName = this.newFileName.trim() || 'renamed-file'
+        const fullName = this.fileExtension ? `${fileName}.${this.fileExtension}` : fileName
         existingContent.innerHTML = `
           <div style="display: flex; align-items: flex-start; gap: 12px;">
             <span style="font-size: 20px; flex-shrink: 0;">✏️</span>
@@ -508,7 +545,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
               <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
                 File will be moved with a new name:
               </div>
-              <code style="background: var(--background-modifier-border); padding: 4px 8px; border-radius: 3px; font-size: 11px; color: var(--text-normal);">${newName}</code>
+              <code style="background: var(--background-modifier-border); padding: 4px 8px; border-radius: 3px; font-size: 11px; color: var(--text-normal);">${fullName}</code>
             </div>
           </div>
         `
