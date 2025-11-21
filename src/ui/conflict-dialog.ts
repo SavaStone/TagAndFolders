@@ -18,8 +18,6 @@ export interface ConflictResolutionResult {
   strategy: ConflictResolution['strategy']
   /** Custom action if applicable */
   customAction?: string
-  /** Whether to apply this resolution to all similar conflicts */
-  applyToAll: boolean
   /** New file name if rename strategy chosen */
   newFileName?: string
   /** Whether user confirmed the action */
@@ -59,15 +57,14 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   private conflict: ConflictInfo
   private selectedStrategy: ConflictResolution['strategy'] = 'prompt'
   private newFileName: string = ''
-  private applyToAll = false
   private strategyRadios: HTMLInputElement[] = []
 
   constructor(app: App, conflict: ConflictInfo) {
     super(app, {
-      title: 'File Conflict',
+      title: '⚠️ File Conflict',
       width: 700,
-      height: 600,
-      type: 'warning',
+      height: 750,
+      type: 'info', // Change to info to avoid adding extra emoji
       showCancel: true,
       buttonLabels: {
         confirm: 'Apply Resolution',
@@ -83,13 +80,6 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     // Use the new styled container from BaseDialog
     const container = this.createContainer('conflict-resolution-modal')
 
-    // Add warning info box
-    this.createInfoBox(
-      container,
-      'File conflict detected. Please choose how to resolve this issue.',
-      'warning'
-    )
-
     // Conflict header
     this.createConflictHeader(container)
 
@@ -104,6 +94,9 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
     // Preview
     this.createResolutionPreview(container)
+
+    // Note about default behavior settings - moved to the very bottom
+    this.createSettingsNote(container)
   }
 
   protected async onConfirm(): Promise<ConflictResolutionResult> {
@@ -113,7 +106,6 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
         const result: ConflictResolutionResult = {
       strategy: this.selectedStrategy,
-      applyToAll: this.applyToAll,
       confirmed: true
     }
 
@@ -144,32 +136,13 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   /**
-   * Create conflict header section - UPDATED WITH REFERENCE DESIGN
+   * Create conflict header section - simplified (main header is in BaseDialog)
    */
   private createConflictHeader(containerEl: HTMLElement): void {
-    const headerEl = containerEl.createDiv('tagfolder-conflict-header')
-    headerEl.style.marginBottom = '20px'
-
-    const titleEl = headerEl.createEl('h4', { text: 'File Conflict Detected' })
-    titleEl.style.color = 'var(--text-warning)'
-    titleEl.style.marginBottom = '12px'
-    titleEl.style.display = 'flex'
-    titleEl.style.alignItems = 'center'
-    titleEl.style.gap = '8px'
-
-    // Add warning icon
-    const iconEl = titleEl.createSpan('tagfolder-conflict-icon')
-    iconEl.textContent = '⚠️'
-    iconEl.style.fontSize = '18px'
-
-    // Conflict description in styled box
-    const descriptionEl = headerEl.createDiv('tagfolder-conflict-description')
-    descriptionEl.style.padding = '12px'
-    descriptionEl.style.borderRadius = '4px'
-    descriptionEl.style.backgroundColor = 'var(--background-warning)'
-    descriptionEl.style.border = '1px solid var(--text-warning)'
-    descriptionEl.style.color = 'var(--text-warning)'
+    // Add conflict description only if needed
+    const descriptionEl = containerEl.createDiv('tagfolder-conflict-description')
     descriptionEl.innerHTML = this.getConflictDescription()
+    descriptionEl.style.marginBottom = '24px'
   }
 
   /**
@@ -179,14 +152,10 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     const comparisonEl = containerEl.createDiv('tagfolder-file-comparison')
     comparisonEl.style.marginBottom = '20px'
 
-    const headerEl = comparisonEl.createEl('h4', { text: 'File Details' })
-    headerEl.style.marginBottom = '12px'
-    headerEl.style.color = 'var(--text-normal)'
+    // Section header with improved typography
+    const headerEl = comparisonEl.createEl('h3', { text: 'File Details' })
 
     const filesGrid = comparisonEl.createDiv('tagfolder-files-grid')
-    filesGrid.style.display = 'grid'
-    filesGrid.style.gridTemplateColumns = '1fr 1fr'
-    filesGrid.style.gap = '16px'
 
     // Existing file card
     const existingFileEl = filesGrid.createDiv('tagfolder-file-card')
@@ -231,65 +200,36 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   /**
-   * Create file card with details - UPDATED WITH REFERENCE DESIGN
+   * Create file card with details - IMPROVED WITH CONSISTENT DESIGN
    */
   private createFileCard(container: HTMLElement, file: any, title: string, icon: string): void {
-    container.style.border = '1px solid var(--background-modifier-border)'
-    container.style.borderRadius = '4px'
-    container.style.padding = '16px'
-    container.style.backgroundColor = 'var(--background-secondary)'
-
-    // Card header
+    // Card header with improved styling
     const headerEl = container.createDiv('tagfolder-file-card-header')
-    headerEl.style.display = 'flex'
-    headerEl.style.alignItems = 'center'
-    headerEl.style.marginBottom = '12px'
 
     const fileIcon = headerEl.createDiv('tagfolder-file-icon')
     fileIcon.textContent = icon
-    fileIcon.style.fontSize = '20px'
-    fileIcon.style.marginRight = '8px'
 
-    const titleEl = headerEl.createEl('h5', { text: title })
-    titleEl.style.margin = '0'
-    titleEl.style.color = 'var(--text-normal)'
-    titleEl.style.fontSize = '14px'
+    const titleEl = headerEl.createEl('h4', { text: title })
 
     // File details
     const detailsEl = container.createDiv('tagfolder-file-details')
-    detailsEl.style.fontSize = '12px'
 
     // File path
     const pathEl = detailsEl.createDiv('tagfolder-file-path')
-    pathEl.style.marginBottom = '4px'
-    pathEl.style.fontFamily = 'monospace'
-    pathEl.style.color = 'var(--text-muted)'
-    pathEl.style.wordBreak = 'break-all'
     pathEl.textContent = file.path
 
     // File size and date in row
     const metaRow = detailsEl.createDiv('tagfolder-file-meta-row')
-    metaRow.style.display = 'flex'
-    metaRow.style.justifyContent = 'space-between'
-    metaRow.style.marginBottom = '4px'
 
     const sizeEl = metaRow.createDiv('tagfolder-file-size')
-    sizeEl.style.color = 'var(--text-muted)'
     sizeEl.textContent = this.formatFileSize(file.size)
 
     const dateEl = metaRow.createDiv('tagfolder-file-date')
-    dateEl.style.color = 'var(--text-muted)'
     dateEl.textContent = this.formatDate(file.modifiedAt)
 
     // Checksum if available
     if (file.checksum) {
       const checksumEl = detailsEl.createDiv('tagfolder-file-checksum')
-      checksumEl.style.marginTop = '8px'
-      checksumEl.style.padding = '4px 8px'
-      checksumEl.style.backgroundColor = 'var(--background-modifier-border)'
-      checksumEl.style.borderRadius = '3px'
-      checksumEl.style.fontFamily = 'monospace'
-      checksumEl.style.fontSize = '10px'
       checksumEl.innerHTML = `
         <span style="color: var(--text-muted);">Checksum: </span>
         <span style="color: var(--text-normal);">${file.checksum.substring(0, 16)}...</span>
@@ -300,14 +240,6 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     const extension = file.path.split('.').pop()?.toLowerCase()
     if (extension) {
       const typeEl = detailsEl.createDiv('tagfolder-file-type')
-      typeEl.style.marginTop = '8px'
-      typeEl.style.display = 'inline-block'
-      typeEl.style.padding = '2px 6px'
-      typeEl.style.backgroundColor = 'var(--interactive-accent)'
-      typeEl.style.color = 'var(--text-on-accent)'
-      typeEl.style.borderRadius = '3px'
-      typeEl.style.fontSize = '10px'
-      typeEl.style.fontWeight = '500'
       typeEl.textContent = extension.toUpperCase()
     }
   }
@@ -482,82 +414,86 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
   }
 
   /**
-   * Create additional options section - UPDATED WITH REFERENCE DESIGN
+   * Create additional options section - Updated structure
    */
   private createAdditionalOptions(containerEl: HTMLElement): void {
-    const optionsEl = containerEl.createDiv('tagfolder-additional-options')
-    optionsEl.style.marginBottom = '20px'
-
-    // Options wrapper with consistent styling
-    const optionsWrapper = optionsEl.createDiv('tagfolder-options-wrapper')
-    optionsWrapper.style.border = '1px solid var(--background-modifier-border)'
-    optionsWrapper.style.borderRadius = '4px'
-    optionsWrapper.style.padding = '16px'
-    optionsWrapper.style.backgroundColor = 'var(--background-secondary)'
-
-    // Apply to all similar conflicts
-    const applyToAllSetting = new Setting(optionsWrapper)
-      .setName('Apply to all similar conflicts')
-      .setDesc('Use this resolution for all conflicts of this type in this operation')
-      .addToggle(toggle => {
-        toggle.setValue(this.applyToAll)
-        toggle.onChange(value => {
-          this.applyToAll = value
-        })
-      })
-
-    // Custom file name for rename strategy
-    const customNameContainer = optionsWrapper.createDiv('tagfolder-custom-name-container')
-    customNameContainer.style.marginTop = '16px'
-    customNameContainer.style.display = this.selectedStrategy === 'rename' ? 'block' : 'none'
-
-    const customNameSetting = new Setting(customNameContainer)
-    customNameSetting.setName('New file name')
-    customNameSetting.setDesc('Enter a new name for the file (extension will be preserved)')
-    customNameSetting.addText((text) => {
-        const targetFile = this.conflict.newFile.path
-        const extension = targetFile.split('.').pop() || ''
-        const baseName = targetFile.split('/').pop()?.replace(`.${extension}`, '') || ''
-        const uniqueName = generateUniqueFileName('', baseName, extension)
-
-        text.setValue(uniqueName)
-        text.inputEl.addEventListener('input', () => {
-          this.newFileName = text.getValue()
-          this.updateResolutionPreview()
-        })
-      })
+    // Add separator spacing
+    const separator = containerEl.createDiv()
+    separator.style.marginBottom = '32px'
   }
 
   /**
-   * Create resolution preview section - UPDATED WITH REFERENCE DESIGN
+   * Create custom name container with proper structure - NO NESTED CONTAINERS
+   */
+  private createCustomNameContainer(containerEl: HTMLElement): void {
+    const customNameContainer = containerEl.createDiv('tagfolder-custom-name-container')
+    customNameContainer.className = 'tagfolder-custom-name-container'
+    customNameContainer.style.display = this.selectedStrategy === 'rename' ? 'block' : 'none'
+
+    // Direct label without wrapper
+    const nameLabel = customNameContainer.createEl('div', { text: 'New file name' })
+    nameLabel.className = 'tagfolder-setting-name'
+
+    // Direct description without wrapper
+    const descLabel = customNameContainer.createEl('div', { text: 'Enter a new name for the file (extension will be preserved)' })
+    descLabel.className = 'tagfolder-setting-description'
+
+    // Direct input without wrapper
+    const textInput = customNameContainer.createEl('input', { type: 'text' })
+    textInput.className = 'tagfolder-text-input'
+
+    const targetFile = this.conflict.newFile.path
+    const extension = targetFile.split('.').pop() || ''
+    const baseName = targetFile.split('/').pop()?.replace(`.${extension}`, '') || ''
+    const uniqueName = generateUniqueFileName('', baseName, extension)
+
+    textInput.value = uniqueName
+    textInput.addEventListener('input', () => {
+      this.newFileName = textInput.value
+      this.updateResolutionPreview()
+    })
+  }
+
+  /**
+   * Create resolution preview section - Updated structure
    */
   private createResolutionPreview(containerEl: HTMLElement): void {
-    const previewEl = containerEl.createDiv('tagfolder-resolution-preview')
+    // Add header outside container
+    const headerEl = containerEl.createEl('h4', { text: 'Resolution Preview' })
+    headerEl.className = 'tagfolder-resolution-header'
 
-    const headerEl = previewEl.createEl('h4', { text: 'Resolution Preview' })
-    headerEl.style.marginBottom = '12px'
-    headerEl.style.color = 'var(--text-normal)'
+    // Custom file name for rename strategy - moved here
+    this.createCustomNameContainer(containerEl)
+
+    // Create content container with unified styling
+    const previewSection = containerEl.createDiv('tagfolder-resolution-preview')
+    const previewEl = previewSection.createDiv('tagfolder-preview-content')
 
     this.updateResolutionPreview()
+  }
+
+  /**
+   * Create settings note section - moved to bottom
+   */
+  private createSettingsNote(containerEl: HTMLElement): void {
+    const noteEl = containerEl.createDiv('tagfolder-settings-note')
+    noteEl.style.marginTop = '32px'
+    noteEl.textContent = 'Note: You can set default conflict resolution behavior in plugin settings.'
   }
 
   /**
    * Update resolution preview - UPDATED WITH REFERENCE DESIGN
    */
   private updateResolutionPreview(): void {
-    const previewEl = this.contentEl.querySelector('.tagfolder-resolution-preview')
-    if (!previewEl) return
+    const previewSection = this.contentEl.querySelector('.tagfolder-resolution-preview')
+    if (!previewSection) return
 
-    const existingContent = previewEl.querySelector('div:last-child')
+    const existingContent = previewSection.querySelector('.tagfolder-preview-content')
     if (existingContent) {
       existingContent.remove()
     }
 
-    const previewContent = previewEl.createDiv('tagfolder-preview-content')
-    previewContent.style.border = '1px solid var(--background-modifier-border)'
-    previewContent.style.borderRadius = '4px'
-    previewContent.style.padding = '16px'
-    previewContent.style.backgroundColor = 'var(--background-secondary)'
+    const previewContent = previewSection.createDiv('tagfolder-preview-content')
 
     switch (this.selectedStrategy) {
       case 'skip':
@@ -663,15 +599,13 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
             value: 'rename',
             title: 'Rename file',
             description: 'Give the new file a different name to avoid conflict',
-            tag: 'Recommended',
-            risk: 'None'
+            tag: 'Recommended'
           },
           {
             value: 'skip',
             title: 'Skip operation',
             description: 'Cancel this file organization and keep both files',
-            tag: 'Safe',
-            risk: 'None'
+            tag: 'Safe'
           },
           {
             value: 'replace',
@@ -684,8 +618,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
             value: 'subfolder',
             title: 'Move to subfolder',
             description: 'Create a conflict subfolder and move the file there',
-            tag: 'Safe',
-            risk: 'None'
+            tag: 'Safe'
           }
         )
         break
@@ -696,8 +629,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
             value: 'skip',
             title: 'Skip operation',
             description: 'Cannot modify read-only file',
-            tag: 'Only option',
-            risk: 'None'
+            tag: 'Only option'
           }
         )
         break
@@ -708,8 +640,7 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
             value: 'skip',
             title: 'Skip operation',
             description: 'Permission denied - cannot access target',
-            tag: 'Only option',
-            risk: 'None'
+            tag: 'Only option'
           }
         )
         break
@@ -720,15 +651,13 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
             value: 'rename',
             title: 'Shorten name',
             description: 'Use a shorter file name to fit path length limits',
-            tag: 'Recommended',
-            risk: 'None'
+            tag: 'Recommended'
           },
           {
             value: 'skip',
             title: 'Skip operation',
             description: 'Cannot move file due to path length',
-            tag: 'Safe',
-            risk: 'None'
+            tag: 'Safe'
           }
         )
         break
