@@ -166,8 +166,7 @@ export class TagFolderPlugin {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.error('Manual organization failed:', error)
-      new Notice(`Organization failed: ${errorMessage}`)
-      throw error
+          throw error
     }
   }
 

@@ -226,7 +226,7 @@ export class ManualOrganizer {
           if (errorMessage.includes('File not found') || errorMessage.includes('already been moved')) {
             new Notice(`⚠️ ${errorMessage}`, 8000)
           } else {
-            new Notice(`❌ Organization failed: ${errorMessage}`, 8000)
+            new Notice(`Organization failed: ${errorMessage}`, 8000)
           }
 
           // Return error result
@@ -484,8 +484,28 @@ export class ManualOrganizer {
 
       // Handle conflicts
       if (error instanceof FileOperationError && await this.handleConflict(error)) {
-        // Retry operation with conflict resolution
-        return await this.executeOrganization(sourcePath, selection, showProgress)
+        // Check if we have a resolved target path from conflict resolution
+        const resolvedTargetPath = (error as any).resolvedTargetPath
+        if (resolvedTargetPath) {
+          // Use the resolved path directly
+          const newFileOperation = await this.createFileOperationDirect(sourcePath, resolvedTargetPath, selection.selectedTag)
+          const moveResult = await this.executeFileOperation(newFileOperation, selection.createBackup)
+
+          return {
+            success: true,
+            sourcePath,
+            targetPath: resolvedTargetPath,
+            selectedTag: selection.selectedTag,
+            operations: [newFileOperation],
+            duration: 0,
+            linksUpdated: 0,
+            filesModified: 0,
+            cancelled: false
+          }
+        } else {
+          // Retry operation with conflict resolution
+          return await this.executeOrganization(sourcePath, selection, showProgress)
+        }
       }
 
       throw error
@@ -592,6 +612,20 @@ export class ManualOrganizer {
       }
     }
 
+    // Check for potential file conflicts before creating operation
+    const targetFile = this.app.vault.getAbstractFileByPath(obsidianTarget)
+    if (targetFile) {
+      // File exists at target location - we need to handle this conflict
+      throw new FileOperationError(
+        'move',
+        obsidianSource,
+        `Destination file already exists: ${obsidianTarget}`,
+        'medium',
+        true,
+        { targetPath: obsidianTarget, selectedTag }
+      )
+    }
+
     return {
       id: `move_${Date.now()}`,
       type: 'move',
@@ -608,6 +642,31 @@ export class ManualOrganizer {
    */
   private async createFileOperation(sourcePath: string, targetPath: string): Promise<FileOperation> {
     return this.createFileOperationForTag(sourcePath, targetPath, 'unknown-tag')
+  }
+
+  /**
+   * Create file operation directly without conflict checking (for resolved conflicts)
+   */
+  private async createFileOperationDirect(sourcePath: string, targetPath: string, selectedTag: string): Promise<FileOperation> {
+    // Ensure paths are in Obsidian format for the FileOperation
+    const obsidianSource = toObsidianPath(sourcePath)
+    const obsidianTarget = toObsidianPath(targetPath)
+
+    // Verify source file exists
+    const sourceFile = this.app.vault.getAbstractFileByPath(obsidianSource)
+    if (!(sourceFile instanceof TFile)) {
+      throw new Error(`Source file not found: ${obsidianSource}`)
+    }
+
+    return {
+      id: `move_${Date.now()}`,
+      type: 'move',
+      source: obsidianSource,
+      target: obsidianTarget,
+      status: 'pending',
+      createdAt: new Date(),
+      associatedTags: [selectedTag]
+    }
   }
 
   /**
@@ -673,49 +732,46 @@ export class ManualOrganizer {
     }
 
     try {
-      // Check if this is a real conflict with actual file operation data
-      if (!error.filePath || error.filePath === 'unknown') {
+      // Get file paths from error context
+      const sourcePath = error.filePath
+      const targetPath = error.context?.targetPath as string
+      const selectedTag = error.context?.selectedTag as string
+
+      if (!sourcePath || !targetPath) {
         console.warn('Cannot resolve conflict: missing file path information')
         return false
       }
 
-      // Try to detect actual conflict using the file mover
-      const conflict = await this.fileMover.detectConflict({
-        id: 'conflict-check',
-        type: 'move',
-        source: error.filePath,
-        target: error.filePath, // This is just for conflict detection
-        status: 'pending',
-        createdAt: new Date(),
-        associatedTags: []
-      })
+      // Get file information from the vault
+      const sourceFile = this.app.vault.getAbstractFileByPath(sourcePath)
+      const targetFile = this.app.vault.getAbstractFileByPath(targetPath)
 
-      if (!conflict) {
-        // No actual conflict detected, don't show dialog
+      if (!(sourceFile instanceof TFile) || !(targetFile instanceof TFile)) {
+        console.warn('Cannot resolve conflict: unable to access files')
         return false
       }
 
-      // Create proper conflict info
+      // Create conflict info
       const conflictInfo = {
         operation: {
           id: 'conflict-op-' + Date.now(),
           type: 'move' as const,
-          source: error.filePath,
-          target: error.filePath,
+          source: sourcePath,
+          target: targetPath,
           status: 'pending' as const,
           createdAt: new Date(),
-          associatedTags: []
+          associatedTags: selectedTag ? [selectedTag] : []
         },
-        type: conflict.type as 'target-exists' | 'target-read-only' | 'permission-denied' | 'path-too-long',
+        type: 'target-exists' as const,
         existingFile: {
-          path: error.filePath,
-          size: 1024, // Would get actual size in real implementation
-          modifiedAt: new Date()
+          path: targetFile.path,
+          size: targetFile.stat.size,
+          modifiedAt: new Date(targetFile.stat.mtime)
         },
         newFile: {
-          path: error.filePath,
-          size: 1024, // Would get actual size in real implementation
-          modifiedAt: new Date()
+          path: sourceFile.path,
+          size: sourceFile.stat.size,
+          modifiedAt: new Date(sourceFile.stat.mtime)
         }
       }
 
@@ -724,8 +780,24 @@ export class ManualOrganizer {
 
       const result = await conflictDialog.getResult()
 
-      if (result.confirmed) {
-        // Apply conflict resolution
+      if (result.confirmed && result.data) {
+        // Apply conflict resolution based on user choice and get new target path
+        const newTargetPath = await this.applyConflictResolution(
+          result.data.strategy,
+          sourcePath,
+          targetPath,
+          selectedTag,
+          result.data.newFileName
+        )
+
+        // Store the resolved path for the retry
+        Object.defineProperty(error, 'resolvedTargetPath', {
+          value: newTargetPath,
+          writable: false,
+          enumerable: true,
+          configurable: true
+        })
+
         return true
       }
 
@@ -734,6 +806,97 @@ export class ManualOrganizer {
     }
 
     return false
+  }
+
+  private async applyConflictResolution(
+    strategy: string,
+    sourcePath: string,
+    targetPath: string,
+    selectedTag?: string,
+    newFileName?: string
+  ): Promise<string> {
+    switch (strategy) {
+      case 'replace':
+        // Delete existing file and allow the move to proceed
+        const existingFile = this.app.vault.getAbstractFileByPath(targetPath)
+        if (existingFile instanceof TFile) {
+          await this.app.vault.delete(existingFile)
+        }
+        return targetPath
+
+      case 'rename':
+        // Generate new filename
+        if (newFileName) {
+          // Use the filename provided by the dialog
+          const parsedTarget = this.parsePath(targetPath)
+          return `${parsedTarget.directory}/${newFileName}`
+        } else {
+          // Auto-generate unique filename
+          return await this.generateUniqueFileName(targetPath)
+        }
+
+      case 'subfolder':
+        // Create a subfolder for conflicts
+        const parsedPath = this.parsePath(targetPath)
+        const conflictFolder = `${parsedPath.directory}/Conflicts`
+        const conflictPath = `${conflictFolder}/${parsedPath.filename}.${parsedPath.extension}`
+
+        // Ensure conflict folder exists
+        if (!this.app.vault.getAbstractFileByPath(conflictFolder)) {
+          await this.app.vault.createFolder(conflictFolder)
+        }
+
+        return conflictPath
+
+      case 'skip':
+        // Cancel the operation
+        throw new Error('Operation cancelled by user')
+
+      case 'merge':
+        // Merge is not implemented yet, treat as skip
+        throw new Error('Merge operation not yet implemented')
+
+      case 'prompt':
+        // Prompt should not reach here as it's handled by the dialog
+        throw new Error('Prompt strategy should be handled by dialog')
+
+      default:
+        throw new Error(`Unknown conflict resolution strategy: ${strategy}`)
+    }
+  }
+
+  private async generateUniqueFileName(targetPath: string): Promise<string> {
+    const parsedPath = this.parsePath(targetPath)
+    const directory = parsedPath.directory
+    const filename = parsedPath.filename
+    const extension = parsedPath.extension
+
+    let counter = 1
+    let newPath = targetPath
+
+    while (this.app.vault.getAbstractFileByPath(newPath)) {
+      newPath = `${directory}/${filename} (${counter}).${extension}`
+      counter++
+    }
+
+    return newPath
+  }
+
+  private parsePath(filePath: string): { directory: string; filename: string; extension: string } {
+    const parts = filePath.split('/')
+    const fullFileName = parts.pop() || ''
+    const directory = parts.join('/')
+
+    const lastDotIndex = fullFileName.lastIndexOf('.')
+    if (lastDotIndex === -1) {
+      return { directory, filename: fullFileName, extension: '' }
+    }
+
+    return {
+      directory,
+      filename: fullFileName.substring(0, lastDotIndex),
+      extension: fullFileName.substring(lastDotIndex + 1)
+    }
   }
 
   /**

@@ -182,8 +182,7 @@ export default class TagFolderPluginWrapper extends Plugin {
           await this.pluginInstance?.organizeCurrentNote()
         } catch (error) {
           console.error('Command failed:', error)
-          new Notice('Failed to organize current note')
-        }
+          }
       }
     })
 
