@@ -61,10 +61,10 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
 
   constructor(app: App, conflict: ConflictInfo) {
     super(app, {
-      title: '⚠️ File Conflict',
+      title: 'File Conflict',
       width: 700,
       height: 750,
-      type: 'info', // Change to info to avoid adding extra emoji
+      type: 'warning', // Back to warning for proper icon
       showCancel: true,
       buttonLabels: {
         confirm: 'Apply Resolution',
@@ -462,11 +462,12 @@ export class ConflictDialog extends BaseDialog<ConflictResolutionResult> {
     const headerEl = containerEl.createEl('h4', { text: 'Resolution Preview' })
     headerEl.className = 'tagfolder-resolution-header'
 
-    // Custom file name for rename strategy - moved here
-    this.createCustomNameContainer(containerEl)
-
     // Create content container with unified styling
     const previewSection = containerEl.createDiv('tagfolder-resolution-preview')
+
+    // Custom file name for rename strategy - moved inside preview container
+    this.createCustomNameContainer(previewSection)
+
     const previewEl = previewSection.createDiv('tagfolder-preview-content')
 
     this.updateResolutionPreview()
