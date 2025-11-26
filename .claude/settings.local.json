@@ -12,7 +12,8 @@
       "Bash(npx tsc:*)",
       "Bash(timeout:*)",
       "Bash(npm install:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
