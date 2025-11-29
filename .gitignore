@@ -108,3 +108,13 @@ playwright-report/
 # Temporary files
 *.tmp
 *.temp
+
+# Claude Code private files
+.claude/settings.local.json
+.claude/
+CLAUDE.md
+
+# Package lock files (use package-lock.json only in production)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

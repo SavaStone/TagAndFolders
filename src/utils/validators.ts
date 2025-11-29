@@ -1,5 +1,5 @@
 /**
- * Data validation utilities for TagFolder plugin
+ * Data validation utilities for Tag and Folders plugin
  */
 
 import type { TagPathMapping, FileOperation } from '@/types/entities.js'

@@ -33,14 +33,14 @@ describe('Manual Organization Integration Tests', () => {
   describe('Plugin Loading', () => {
     it('should be able to import core modules', async () => {
       // Test that core modules can be imported
-      const { TagFolderPlugin } = await import('@/core/plugin.js')
+      const { TagAndFoldersPlugin } = await import('@/core/plugin.js')
       const { ManualOrganizer } = await import('@/manual/organizer.js')
       const { TagScanner } = await import('@/scanning/tag-scanner.js')
       const { PathMapper } = await import('@/scanning/path-mapper.js')
       const { FileMover } = await import('@/file-ops/file-mover.js')
       const { LinkUpdater } = await import('@/file-ops/link-updater.js')
 
-      expect(TagFolderPlugin).toBeDefined()
+      expect(TagAndFoldersPlugin).toBeDefined()
       expect(ManualOrganizer).toBeDefined()
       expect(TagScanner).toBeDefined()
       expect(PathMapper).toBeDefined()
@@ -49,10 +49,10 @@ describe('Manual Organization Integration Tests', () => {
     })
 
     it('should initialize plugin without errors', async () => {
-      const { TagFolderPlugin } = await import('@/core/plugin.js')
+      const { TagAndFoldersPlugin } = await import('@/core/plugin.js')
       const { DEFAULT_SETTINGS } = await import('@/main.js')
 
-      const plugin = new TagFolderPlugin(mockApp, DEFAULT_SETTINGS)
+      const plugin = new TagAndFoldersPlugin(mockApp, DEFAULT_SETTINGS)
 
       expect(plugin).toBeDefined()
       expect(plugin.isInitialized).toBe(false)
@@ -118,10 +118,10 @@ describe('Manual Organization Integration Tests', () => {
 
   describe('Core Functionality Integration', () => {
     it('should create and configure core components', async () => {
-      const { TagFolderPlugin } = await import('@/core/plugin.js')
+      const { TagAndFoldersPlugin } = await import('@/core/plugin.js')
       const { DEFAULT_SETTINGS } = await import('@/main.js')
 
-      const plugin = new TagFolderPlugin(mockApp, DEFAULT_SETTINGS)
+      const plugin = new TagAndFoldersPlugin(mockApp, DEFAULT_SETTINGS)
       await plugin.initialize()
 
       // Test that the plugin can perform basic operations
@@ -136,10 +136,10 @@ describe('Manual Organization Integration Tests', () => {
 
   describe('Constitution Compliance', () => {
     it('should enforce manual-only organization principles', async () => {
-      const { TagFolderPlugin } = await import('@/core/plugin.js')
+      const { TagAndFoldersPlugin } = await import('@/core/plugin.js')
       const { DEFAULT_SETTINGS } = await import('@/main.js')
 
-      const plugin = new TagFolderPlugin(mockApp, DEFAULT_SETTINGS)
+      const plugin = new TagAndFoldersPlugin(mockApp, DEFAULT_SETTINGS)
       await plugin.initialize()
 
       // Verify manual organization settings

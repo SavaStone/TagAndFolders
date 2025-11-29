@@ -1,5 +1,5 @@
 /**
- * Base Dialog System - Modal dialog management for TagFolder plugin
+ * Base Dialog System - Modal dialog management for Tag and Folders plugin
  */
 
 import { App, Modal, Setting, Notice, ButtonComponent } from 'obsidian'

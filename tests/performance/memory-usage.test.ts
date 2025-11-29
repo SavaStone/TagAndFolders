@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { TagFolderPlugin } from '@/core/plugin.js'
+import { TagAndFoldersPlugin } from '@/core/plugin.js'
 import { DEFAULT_SETTINGS } from '@/main.js'
 
 // Mock Obsidian App
@@ -23,7 +23,7 @@ const mockApp = {
 } as any
 
 describe('Memory Usage Tests', () => {
-  let plugin: TagFolderPlugin
+  let plugin: TagAndFoldersPlugin
 
   beforeEach(async () => {
     // Force garbage collection before each test
@@ -47,7 +47,7 @@ describe('Memory Usage Tests', () => {
       const initialMemory = getMemoryUsage()
 
       // Initialize plugin (simulates Obsidian loading)
-      plugin = new TagFolderPlugin(mockApp, DEFAULT_SETTINGS)
+      plugin = new TagAndFoldersPlugin(mockApp, DEFAULT_SETTINGS)
       await plugin.initialize()
 
       // Wait for idle state
@@ -65,7 +65,7 @@ describe('Memory Usage Tests', () => {
     })
 
     it('should not accumulate memory during repeated operations', async () => {
-      plugin = new TagFolderPlugin(mockApp, DEFAULT_SETTINGS)
+      plugin = new TagAndFoldersPlugin(mockApp, DEFAULT_SETTINGS)
       await plugin.initialize()
 
       const baselineMemory = getMemoryUsage()
@@ -95,7 +95,7 @@ describe('Memory Usage Tests', () => {
       const initialMemory = getMemoryUsage()
 
       // Initialize and use plugin
-      plugin = new TagFolderPlugin(mockApp, DEFAULT_SETTINGS)
+      plugin = new TagAndFoldersPlugin(mockApp, DEFAULT_SETTINGS)
       await plugin.initialize()
 
       // Perform some operations
@@ -127,7 +127,7 @@ describe('Memory Usage Tests', () => {
 
   describe('Memory Hotspots', () => {
     it('should handle large tag lists efficiently', async () => {
-      plugin = new TagFolderPlugin(mockApp, DEFAULT_SETTINGS)
+      plugin = new TagAndFoldersPlugin(mockApp, DEFAULT_SETTINGS)
       await plugin.initialize()
 
       const baselineMemory = getMemoryUsage()

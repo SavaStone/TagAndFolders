@@ -1,11 +1,11 @@
 /**
- * Error handling classes and utilities for TagFolder plugin
+ * Error handling classes and utilities for Tag and Folders plugin
  */
 
 /**
- * Base error class for all TagFolder errors
+ * Base error class for all TagAndFolders errors
  */
-export abstract class TagFolderError extends Error {
+export abstract class TagAndFoldersError extends Error {
   /** Error code */
   public readonly code: string
 
@@ -74,7 +74,7 @@ export abstract class TagFolderError extends Error {
 /**
  * Validation errors
  */
-export class ValidationError extends TagFolderError {
+export class ValidationError extends TagAndFoldersError {
   constructor(message: string, context?: Record<string, any>, cause?: Error) {
     super('VALIDATION_ERROR', message, 'medium', true, context, cause)
   }
@@ -87,7 +87,7 @@ export class ValidationError extends TagFolderError {
 /**
  * File operation errors
  */
-export class FileOperationError extends TagFolderError {
+export class FileOperationError extends TagAndFoldersError {
   public readonly operation: string
   public readonly filePath: string
 
@@ -195,7 +195,7 @@ export class FileConflictError extends FileOperationError {
 /**
  * Scanner errors
  */
-export class ScannerError extends TagFolderError {
+export class ScannerError extends TagAndFoldersError {
   public readonly filePath: string | undefined
 
   constructor(
@@ -225,7 +225,7 @@ export class ScannerError extends TagFolderError {
 /**
  * Configuration errors
  */
-export class ConfigurationError extends TagFolderError {
+export class ConfigurationError extends TagAndFoldersError {
   constructor(message: string, context?: Record<string, any>, cause?: Error) {
     super('CONFIGURATION_ERROR', message, 'medium', true, context, cause)
   }
@@ -238,7 +238,7 @@ export class ConfigurationError extends TagFolderError {
 /**
  * Network or API errors
  */
-export class NetworkError extends TagFolderError {
+export class NetworkError extends TagAndFoldersError {
   constructor(message: string, cause?: Error) {
     super('NETWORK_ERROR', message, 'medium', true, { networkError: true }, cause)
   }
@@ -251,7 +251,7 @@ export class NetworkError extends TagFolderError {
 /**
  * Timeout errors
  */
-export class TimeoutError extends TagFolderError {
+export class TimeoutError extends TagAndFoldersError {
   public readonly operation: string
   public readonly timeout: number
 
@@ -276,7 +276,7 @@ export class TimeoutError extends TagFolderError {
 /**
  * Cancellation errors
  */
-export class CancellationError extends TagFolderError {
+export class CancellationError extends TagAndFoldersError {
   public readonly operation: string
 
   constructor(operation: string) {
@@ -301,7 +301,7 @@ export class CancellationError extends TagFolderError {
  */
 export class ErrorHandler {
   private static instance: ErrorHandler
-  private errors: TagFolderError[] = []
+  private errors: TagAndFoldersError[] = []
   private maxErrors: number = 100
 
   private constructor() {}
@@ -319,11 +319,11 @@ export class ErrorHandler {
   /**
    * Handle an error
    */
-  handleError(error: Error | TagFolderError, context?: Record<string, any>): void {
-    const tagFolderError = error instanceof TagFolderError ? error : this.wrapError(error, context)
+  handleError(error: Error | TagAndFoldersError, context?: Record<string, any>): void {
+    const tagAndFoldersError = error instanceof TagAndFoldersError ? error : this.wrapError(error, context)
 
     // Add to error history
-    this.errors.push(tagFolderError)
+    this.errors.push(tagAndFoldersError)
 
     // Trim error history if needed
     if (this.errors.length > this.maxErrors) {
@@ -331,23 +331,23 @@ export class ErrorHandler {
     }
 
     // Log error
-    console.error(`[TagFolder] ${tagFolderError.code}: ${tagFolderError.message}`, {
-      error: tagFolderError.toJSON()
+    console.error(`[TagAndFolders] ${tagAndFoldersError.code}: ${tagAndFoldersError.message}`, {
+      error: tagAndFoldersError.toJSON()
     })
   }
 
   /**
-   * Wrap a generic Error into TagFolderError
+   * Wrap a generic Error into TagAndFoldersError
    */
-  private wrapError(error: Error, context?: Record<string, any>): TagFolderError {
+  private wrapError(error: Error, context?: Record<string, any>): TagAndFoldersError {
     // Create a concrete implementation instead of abstract class
-    class ConcreteTagFolderError extends TagFolderError {
+    class ConcreteTagAndFoldersError extends TagAndFoldersError {
       constructor(code: string, message: string, severity: 'low' | 'medium' | 'high', recoverable: boolean, context?: Record<string, any>, cause?: Error) {
         super(code, message, severity, recoverable, context, cause)
       }
     }
 
-    return new ConcreteTagFolderError(
+    return new ConcreteTagAndFoldersError(
       'UNKNOWN_ERROR',
       error.message || 'An unknown error occurred',
       'medium',
@@ -360,14 +360,14 @@ export class ErrorHandler {
   /**
    * Get recent errors
    */
-  getRecentErrors(count: number = 10): TagFolderError[] {
+  getRecentErrors(count: number = 10): TagAndFoldersError[] {
     return this.errors.slice(-count)
   }
 
   /**
    * Get errors by severity
    */
-  getErrorsBySeverity(severity: 'low' | 'medium' | 'high' | 'critical'): TagFolderError[] {
+  getErrorsBySeverity(severity: 'low' | 'medium' | 'high' | 'critical'): TagAndFoldersError[] {
     return this.errors.filter(error => error.severity === severity)
   }
 
@@ -424,7 +424,7 @@ export function createError(
   message: string,
   context?: Record<string, any>,
   cause?: Error
-): TagFolderError {
+): TagAndFoldersError {
   switch (code) {
     case 'VALIDATION_ERROR':
       return new ValidationError(message, context, cause)
@@ -473,12 +473,12 @@ export function createError(
       return new CancellationError(context?.operation || 'unknown')
     default:
       // Create a concrete error instance
-      class DefaultTagFolderError extends TagFolderError {
+      class DefaultTagAndFoldersError extends TagAndFoldersError {
         constructor(errorCode: string, errorMessage: string, errorSeverity: 'low' | 'medium' | 'high' | 'critical', errorRecoverable: boolean, errorContext?: Record<string, any>, errorCause?: Error) {
           super(errorCode, errorMessage, errorSeverity, errorRecoverable, errorContext, errorCause)
         }
       }
-      return new DefaultTagFolderError(code, message, 'medium', true, context, cause)
+      return new DefaultTagAndFoldersError(code, message, 'medium', true, context, cause)
   }
 }
 
@@ -486,14 +486,14 @@ export function createError(
  * Check if an error is recoverable
  */
 export function isRecoverableError(error: Error): boolean {
-  return error instanceof TagFolderError ? error.recoverable : true
+  return error instanceof TagAndFoldersError ? error.recoverable : true
 }
 
 /**
  * Get user-friendly error message
  */
 export function getUserErrorMessage(error: Error): string {
-  if (error instanceof TagFolderError) {
+  if (error instanceof TagAndFoldersError) {
     return error.getUserMessage()
   }
   return error.message || 'An unknown error occurred'

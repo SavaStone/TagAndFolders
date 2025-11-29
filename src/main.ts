@@ -1,5 +1,5 @@
 /**
- * TagFolder Plugin for Obsidian
+ * Tag and Folders Plugin for Obsidian
  *
  * A manual-only file organization plugin that helps users organize their notes
  * into folders based on tags with complete user control and link preservation.
@@ -7,7 +7,7 @@
 
 import { App, Plugin, Notice } from 'obsidian'
 import type { PluginConfig } from '@/types/settings.js'
-import { TagFolderPlugin } from '@/core/plugin.js'
+import { TagAndFoldersPlugin } from '@/core/plugin.js'
 
 /**
  * Hardcoded plugin configuration for first version
@@ -29,15 +29,15 @@ const PLUGIN_CONFIG: PluginConfig = {
   tagMappings: []
 }
 
-export default class TagFolderPluginWrapper extends Plugin {
-  private pluginInstance: TagFolderPlugin | null = null
+export default class TagAndFoldersPluginWrapper extends Plugin {
+  private pluginInstance: TagAndFoldersPlugin | null = null
 
   override async onload() {
-    console.log('Loading TagFolder Plugin...')
+    console.log('Loading Tag and Folders Plugin...')
 
     try {
       // Create plugin instance with hardcoded configuration
-      this.pluginInstance = new TagFolderPlugin(this.app, PLUGIN_CONFIG)
+      this.pluginInstance = new TagAndFoldersPlugin(this.app, PLUGIN_CONFIG)
 
       // Initialize the plugin
       await this.pluginInstance.initialize()
@@ -45,11 +45,11 @@ export default class TagFolderPluginWrapper extends Plugin {
       // Register commands
       this.addCommands()
 
-      console.log('TagFolder Plugin loaded successfully')
+      console.log('Tag and Folders Plugin loaded successfully')
 
     } catch (error) {
-      console.error('Failed to load TagFolder Plugin:', error)
-      new Notice('Failed to load TagFolder Plugin. Check console for details.')
+      console.error('Failed to load Tag and Folders Plugin:', error)
+      new Notice('Failed to load Tag and Folders Plugin. Check console for details.')
     }
   }
 
@@ -87,7 +87,7 @@ export default class TagFolderPluginWrapper extends Plugin {
     // Command: Test plugin
     this.addCommand({
       id: 'test-plugin',
-      name: 'Test TagFolder Plugin',
+      name: 'Test Tag and Folders Plugin',
       callback: async () => {
         try {
           const success = await this.pluginInstance?.testPlugin()
@@ -101,11 +101,11 @@ export default class TagFolderPluginWrapper extends Plugin {
       }
     })
 
-    console.log('TagFolder Plugin commands registered')
+    console.log('Tag and Folders Plugin commands registered')
   }
 
   override async onunload() {
-    console.log('Unloading TagFolder Plugin...')
+    console.log('Unloading Tag and Folders Plugin...')
 
     try {
       if (this.pluginInstance) {
@@ -113,16 +113,16 @@ export default class TagFolderPluginWrapper extends Plugin {
         this.pluginInstance = null
       }
 
-      console.log('TagFolder Plugin unloaded successfully')
+      console.log('Tag and Folders Plugin unloaded successfully')
     } catch (error) {
-      console.error('Error unloading TagFolder Plugin:', error)
+      console.error('Error unloading Tag and Folders Plugin:', error)
     }
   }
 
   /**
    * Get the plugin instance
    */
-  getPluginInstance(): TagFolderPlugin | null {
+  getPluginInstance(): TagAndFoldersPlugin | null {
     return this.pluginInstance
   }
 

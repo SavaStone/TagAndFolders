@@ -26,7 +26,7 @@ export type {
 
 // Error types
 export type {
-  TagFolderError,
+  TagAndFoldersError,
   ScannerError,
   FileOperationError,
   FileConflictError,

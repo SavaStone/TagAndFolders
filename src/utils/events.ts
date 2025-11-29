@@ -1,5 +1,5 @@
 /**
- * Event emitter system for TagFolder plugin
+ * Event emitter system for Tag and Folders plugin
  */
 
 /**
@@ -276,12 +276,12 @@ export class TypedEventEmitter<TEvents extends Record<string, any>> {
 /**
  * Global event emitter instance
  */
-export const globalEventEmitter = new TypedEventEmitter<TagFolderEvents>()
+export const globalEventEmitter = new TypedEventEmitter<TagAndFoldersEvents>()
 
 /**
- * TagFolder plugin events
+ * TagAndFolders plugin events
  */
-export interface TagFolderEvents {
+export interface TagAndFoldersEvents {
   // Scanner events
   'scan-started': { scanId: string; startTime: Date }
   'scan-progress': { scanId: string; progress: { completed: number; total: number; currentFile?: string } }
@@ -352,9 +352,9 @@ export class EventEmitter {
   /**
    * Add event listener
    */
-  on<TEventName extends keyof TagFolderEvents>(
+  on<TEventName extends keyof TagAndFoldersEvents>(
     eventName: TEventName,
-    listener: EventListener<TagFolderEvents[TEventName]>,
+    listener: EventListener<TagAndFoldersEvents[TEventName]>,
     options?: { once?: boolean; id?: string }
   ): string {
     return this.emitter.on(eventName, listener, options)
@@ -363,9 +363,9 @@ export class EventEmitter {
   /**
    * Add one-time event listener
    */
-  once<TEventName extends keyof TagFolderEvents>(
+  once<TEventName extends keyof TagAndFoldersEvents>(
     eventName: TEventName,
-    listener: EventListener<TagFolderEvents[TEventName]>,
+    listener: EventListener<TagAndFoldersEvents[TEventName]>,
     id?: string
   ): string {
     return this.emitter.once(eventName, listener, id)
@@ -374,9 +374,9 @@ export class EventEmitter {
   /**
    * Remove event listener
    */
-  off<TEventName extends keyof TagFolderEvents>(
+  off<TEventName extends keyof TagAndFoldersEvents>(
     eventName: TEventName,
-    listenerOrId: EventListener<TagFolderEvents[TEventName]> | string
+    listenerOrId: EventListener<TagAndFoldersEvents[TEventName]> | string
   ): void {
     this.emitter.off(eventName, listenerOrId)
   }
@@ -384,16 +384,16 @@ export class EventEmitter {
   /**
    * Remove all listeners
    */
-  removeAllListeners<TEventName extends keyof TagFolderEvents>(eventName?: TEventName): void {
+  removeAllListeners<TEventName extends keyof TagAndFoldersEvents>(eventName?: TEventName): void {
     this.emitter.removeAllListeners(eventName)
   }
 
   /**
    * Emit event with middleware support
    */
-  async emit<TEventName extends keyof TagFolderEvents>(
+  async emit<TEventName extends keyof TagAndFoldersEvents>(
     eventName: TEventName,
-    data: TagFolderEvents[TEventName]
+    data: TagAndFoldersEvents[TEventName]
   ): Promise<void> {
     let processedData = data
 
@@ -408,9 +408,9 @@ export class EventEmitter {
   /**
    * Emit event synchronously
    */
-  emitSync<TEventName extends keyof TagFolderEvents>(
+  emitSync<TEventName extends keyof TagAndFoldersEvents>(
     eventName: TEventName,
-    data: TagFolderEvents[TEventName]
+    data: TagAndFoldersEvents[TEventName]
   ): void {
     let processedData = data
 
@@ -453,15 +453,15 @@ export class EventEmitter {
   /**
    * Get listener count
    */
-  listenerCount<TEventName extends keyof TagFolderEvents>(eventName: TEventName): number {
+  listenerCount<TEventName extends keyof TagAndFoldersEvents>(eventName: TEventName): number {
     return this.emitter.listenerCount(eventName)
   }
 
   /**
    * Get event names
    */
-  eventNames(): (keyof TagFolderEvents)[] {
-    return this.emitter.eventNames() as (keyof TagFolderEvents)[]
+  eventNames(): (keyof TagAndFoldersEvents)[] {
+    return this.emitter.eventNames() as (keyof TagAndFoldersEvents)[]
   }
 }
 

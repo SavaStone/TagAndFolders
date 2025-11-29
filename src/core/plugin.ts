@@ -1,5 +1,5 @@
 /**
- * TagFolder Plugin Core - Main plugin implementation
+ * Tag and Folders Plugin Core - Main plugin implementation
  */
 
 import { App, Plugin, Notice, WorkspaceLeaf, TFile, Modal } from 'obsidian'
@@ -29,9 +29,9 @@ export interface PluginState {
 }
 
 /**
- * Main TagFolder Plugin Implementation
+ * Main Tag and Folders Plugin Implementation
  */
-export class TagFolderPlugin {
+export class TagAndFoldersPlugin {
   private manualOrganizer: ManualOrganizer | null = null
   private state: PluginState = {
     initialized: false,
@@ -70,7 +70,7 @@ export class TagFolderPlugin {
 
     } catch (error) {
       this.state.lastError = error instanceof Error ? error : new Error('Unknown error')
-      console.error('Failed to initialize TagFolder Plugin:', error)
+      console.error('Failed to initialize Tag and Folders Plugin:', error)
       errorHandler.handleError(this.state.lastError, { operation: 'initialize' })
       throw this.state.lastError
     }
@@ -94,7 +94,7 @@ export class TagFolderPlugin {
       this.state.initialized = false
 
     } catch (error) {
-      console.error('Error during TagFolder Plugin cleanup:', error)
+      console.error('Error during Tag and Folders Plugin cleanup:', error)
       throw error
     }
   }
@@ -441,7 +441,7 @@ export class TagFolderPlugin {
    * Register plugin commands (handled by main Plugin class)
    */
   private registerCommands(): void {
-    // Commands are registered in the main Plugin class (TagFolderPluginWrapper)
+    // Commands are registered in the main Plugin class (TagAndFoldersPluginWrapper)
     // This method exists for future command handling but doesn't directly register with workspace
   }
 

@@ -1,5 +1,5 @@
 /**
- * Type index file for TagFolder plugin
+ * Type index file for Tag and Folders plugin
  * Centralized export of all types for easier importing
  */
 
@@ -36,7 +36,7 @@ export type {
 
 // Error types
 export type {
-  TagFolderError,
+  TagAndFoldersError,
   ScannerError,
   FileOperationError,
   FileConflictError,

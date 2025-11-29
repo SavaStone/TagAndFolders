@@ -1,5 +1,5 @@
 /**
- * Cross-platform path utilities for TagFolder plugin
+ * Cross-platform path utilities for Tag and Folders plugin
  */
 
 /**

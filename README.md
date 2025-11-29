@@ -1,18 +1,18 @@
-# TagFolder Plugin for Obsidian
+# Tag and Folders Plugin for Obsidian
 
-[![Version](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/SavaStone/TagFolder)
+[![Version](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/SavaStone/TagAndFolders)
 
-[![Status](https://img.shields.io/badge/status-beta-orange)](https://github.com/SavaStone/TagFolder)
+[![Status](https://img.shields.io/badge/status-beta-orange)](https://github.com/SavaStone/TagAndFolders)
 
 A plugin for Obsidian that organizes notes into folders based on their tags. This initial version focuses on manual organization to ensure stability and gauge user interest before adding automated features in future releases.
 
 ## Overview
 
-TagFolder helps you structure your Obsidian vault by moving notes into directories that match their tags. In this v1.0 release, organization is fully manual—you initiate every move to maintain complete control and avoid unexpected changes. Automatic organization (e.g., on note save or via batch processing) is planned for upcoming versions once I've minimized bugs and confirmed community demand.
+Tag and Folders helps you structure your Obsidian vault by moving notes into directories that match their tags. In this v1.0 release, organization is fully manual—you initiate every move to maintain complete control and avoid unexpected changes. Automatic organization (e.g., on note save or via batch processing) is planned for upcoming versions once I've minimized bugs and confirmed community demand.
 
 Key highlights:
 - 100% of the code was generated using Claude AI for coding assistance.
-- Check out the plugin overview on my YouTube channel: [Link to your YouTube video] (replace with actual URL).
+- Check out the plugin overview on my YouTube channel: https://youtu.be/tPrZNTrOnSg
 
 The plugin detects various tag formats (YAML frontmatter, inline hashtags, and nested tags).
 
@@ -41,8 +41,8 @@ As an Obsidian user, I want to see suggested folder paths for a note based on it
 ## Installation
 
 ### Manual Installation
-1. Download the latest release from the [Releases](https://github.com/SavaStone/TagFolder/releases) page.
-2. Extract the files to your vault's `.obsidian/plugins/tagfolder/` directory.
+1. Download the latest release from the [Releases](https://github.com/SavaStone/TagAndFolders/releases) page.
+2. Extract the files to your vault's `.obsidian/plugins/tag-and-folders/` directory.
 3. Enable the plugin in Obsidian's settings under Community Plugins.
 
 ### Installation via BRAT
@@ -50,9 +50,9 @@ If you want to install directly from the GitHub repository (useful for accessing
 
 1. Ensure you have the BRAT plugin installed and enabled (search for "BRAT" in Obsidian's Community Plugins).
 2. Open the BRAT settings in Obsidian.
-3. Click "Add Beta Plugin" and paste the repository URL: `https://github.com/SavaStone/TagFolder`.
+3. Click "Add Beta Plugin" and paste the repository URL: `https://github.com/SavaStone/TagAndFolders`.
 4. BRAT will handle the download and installation.
-5. Enable the TagFolder plugin in Obsidian's Community Plugins settings.
+5. Enable the Tag and Folders plugin in Obsidian's Community Plugins settings.
 
 ## Usage
 
@@ -60,20 +60,20 @@ All main functions are accessed via the command palette (Ctrl/Cmd + P). You can 
 
 ### Available Commands
 
-- **TagFolder: Organize Current Note**: This command initiates the manual organization process for the currently open note. It scans the note's tags and presents a modal dialog with selectable options. Each option corresponds to one of the note's tags, displaying the tag (e.g., #Projects/ClientA/Notes) alongside the target folder path it maps to (e.g., Projects/ClientA/Notes/). You can choose a tag from the list, and upon confirmation, the note will be moved to the corresponding folder. The plugin automatically handles link updates, conflict resolution (via additional dialogs if needed), and backups during the process.
+- **Tag and Folders: Organize Current Note**: This command initiates the manual organization process for the currently open note. It scans the note's tags and presents a modal dialog with selectable options. Each option corresponds to one of the note's tags, displaying the tag (e.g., #Projects/ClientA/Notes) alongside the target folder path it maps to (e.g., Projects/ClientA/Notes/). You can choose a tag from the list, and upon confirmation, the note will be moved to the corresponding folder. The plugin automatically handles link updates, conflict resolution (via additional dialogs if needed), and backups during the process.
 
   ![Organize Current Note Modal](screenshots/organize-modal.png)
 
-- **TagFolder: Show Organization Paths**: This command displays a side notification (toast message) previewing the potential folder paths where the current note can be moved, based on its tags. For example, it might show "You can move '[Note Title]' to:" followed by a list of paths like "Projects/ClientA/Notes/" or "Active/". This is a quick, non-intrusive way to check organization options without opening a full modal or committing to any changes—it simply informs you of possible destinations corresponding to the note's tags.
+- **Tag and Folders: Show Organization Paths**: This command displays a side notification (toast message) previewing the potential folder paths where the current note can be moved, based on its tags. For example, it might show "You can move '[Note Title]' to:" followed by a list of paths like "Projects/ClientA/Notes/" or "Active/". This is a quick, non-intrusive way to check organization options without opening a full modal or committing to any changes—it simply informs you of possible destinations corresponding to the note's tags.
 
   ![Show Organization Paths Notification](screenshots/show-paths-notification.png)
 
-- **TagFolder: Test TagFolder Plugin**: This is a diagnostic command to verify that the plugin is installed and functioning correctly. It runs a quick internal test, which may log details to the console or display a confirmation message, useful for troubleshooting during setup or after updates.
+- **Tag and Folders: Test Tag and Folders Plugin**: This is a diagnostic command to verify that the plugin is installed and functioning correctly. It runs a quick internal test, which may log details to the console or display a confirmation message, useful for troubleshooting during setup or after updates.
 
 To use any command:
 1. Open a note that contains tags in Obsidian.
 2. Press Ctrl/Cmd + P to open the command palette.
-3. Search for the desired TagFolder command and select it.
+3. Search for the desired Tag and Folders command and select it.
 4. Follow any on-screen prompts (e.g., for previews or confirmations).
 
 ## Conflict Resolution
@@ -117,8 +117,8 @@ After selecting an option and confirming, the plugin proceeds with the move, upd
 
 ### Setup
 ```bash
-git clone https://github.com/SavaStone/TagFolder.git
-cd tagfolder-plugin
+git clone https://github.com/SavaStone/TagAndFolders.git
+cd "TagFolder Plugin"
 npm install
 npm run dev
 ```

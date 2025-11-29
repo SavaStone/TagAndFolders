@@ -1,6 +1,6 @@
 {
-  "id": "tagfolder-plugin",
-  "name": "TagFolder",
+  "id": "tag-and-folders-plugin",
+  "name": "Tag and Folders",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
   "description": "Manual-only file organization for Obsidian based on tags with intelligent conflict resolution and link preservation",

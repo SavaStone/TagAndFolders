@@ -1,5 +1,5 @@
 /**
- * Core entity types for the TagFolder plugin
+ * Core entity types for the Tag and Folders plugin
  */
 
 /**
