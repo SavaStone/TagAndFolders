@@ -24,7 +24,8 @@
       "Bash(gh repo create:*)",
       "Bash(git remote remove:*)",
       "Bash(git config:*)",
-      "Bash(npm run version:*)"
+      "Bash(npm run version:*)",
+      "Bash(gh release list:*)"
     ],
     "deny": [],
     "ask": []
