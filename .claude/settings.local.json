@@ -20,7 +20,11 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(git remote set-url:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git config:*)",
+      "Bash(npm run version:*)"
     ],
     "deny": [],
     "ask": []
